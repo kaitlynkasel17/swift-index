@@ -260,7 +260,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Password to delete profiles (a soft gate for your friend group — change it).
 const ADMIN_PASSWORD = "taylor13";
 // Build tag — shown in the ≡ menu so you can confirm a fresh deploy is live.
-const BUILD = "drag-v19";
+const BUILD = "drag-v20";
 
 /* ============================================================================
    2. THE CATALOG — every distinct Taylor Swift song (re-recordings collapsed
@@ -377,7 +377,12 @@ const BASE = 1000, K = 32;
 // drag-drop "anchor": a vote whose loser is "__anchor__:<rating>" — sets the song's rating directly.
 // The rating rides in the always-present `loser` text column so it works even if `decided_ms` was never migrated.
 const ANCHOR='__anchor__';
-function isAnchor(loser){ return typeof loser==='string' && loser.indexOf(ANCHOR)===0; }
+// Anchor variants: plain rating set, "__placed__" (you dragged it — counts toward accuracy),
+// "__certified__" (you locked the album — full accuracy + excluded from further battles).
+const MARKERS=['__anchor__','__placed__','__certified__'];
+function isAnchor(loser){ return typeof loser==='string' && MARKERS.some(m=> loser.indexOf(m)===0); }
+function affirmKind(loser){ if(typeof loser!=='string') return null;
+  if(loser.indexOf('__certified__')===0) return 'certified'; if(loser.indexOf('__placed__')===0) return 'placed'; return null; }
 function anchorRating(v){ const a=Number(String(v.loser).split(':')[1]); return isNaN(a)? Number(v.decided_ms) : a; }
 function computeStats(votes){
   const players = {};
@@ -397,9 +402,11 @@ function computeStats(votes){
     const anchor = isAnchor(v.loser);        // drag-drop: set this song's rating directly
     let p = players[v.player_id];
     if (!p){ p = players[v.player_id] = { id:v.player_id, name:v.player_name, color:v.player_color||"#7a5c34",
-      ratings:{}, counts:{}, n:0, directed:new Set() }; }
+      ratings:{}, counts:{}, n:0, directed:new Set(), affirmed:new Set(), certified:new Set() }; }
     p.name = v.player_name; if (v.player_color) p.color = v.player_color;
-    if (anchor){ const rt=anchorRating(v); if(!isNaN(rt)) p.ratings[v.winner]=rt; if(!p.counts[v.winner]) p.counts[v.winner]=1; continue; }
+    if (anchor){ const rt=anchorRating(v); if(!isNaN(rt)) p.ratings[v.winner]=rt; if(!p.counts[v.winner]) p.counts[v.winner]=1;
+      const k=affirmKind(v.loser); if(k){ p.affirmed.add(v.winner); if(k==='certified') p.certified.add(v.winner); else p.certified.delete(v.winner); }
+      continue; }
     const rw = p.ratings[v.winner] ?? BASE, rl = p.ratings[v.loser] ?? BASE;
     const expW = 1/(1+Math.pow(10,(rl-rw)/400));
     p.ratings[v.winner] = rw + K*(1-expW);
@@ -424,7 +431,9 @@ function settledness(p, pool){
   if (!p) return { pct:0, inPlay:0 };
   const D=5; let sum=0, inPlay=0;
   const ids = pool || Object.keys(SONG_BY_ID);
-  for (const id of ids){ if (!SONG_BY_ID[id]) continue; const c=p.counts[id]||0; if (c>0){ inPlay++; sum+=Math.min(c,D); } }
+  const aff = p.affirmed || NO_EXCLUDE;
+  for (const id of ids){ if (!SONG_BY_ID[id]) continue; const c=p.counts[id]||0; const a=aff.has(id);   // a song you placed/certified is fully settled
+    if (c>0 || a){ inPlay++; sum += a ? D : Math.min(c,D); } }
   return { pct: Math.round(100*sum/(D*ids.length)), inPlay };
 }
 // Accuracy of the COMMUNITY ranking — pools every player's comparisons per song.
@@ -823,7 +832,7 @@ function App(){
   const submitAnchors=useCallback(async(anchors)=>{
     if(!me || !anchors || !anchors.length) return;
     const core=anchors.map(a=>({room:me.room,player_id:me.id,player_name:me.name,player_color:me.color,
-      winner:a.id, loser:ANCHOR+':'+a.rating}));   // full-precision rating rides in the always-present loser column
+      winner:a.id, loser:'__'+(a.mark||'anchor')+'__:'+a.rating}));   // mark: anchor | placed | certified — rating rides in the loser text
     const base=core.map((c,i)=>({...c, decided_ms:Math.round(anchors[i].rating), season:'current'}));
     if(offline){ const rows=base.map(r=>({...r,id:uid(),created_at:new Date().toISOString()}));
       setVotes(v=>{ const nv=[...v,...rows]; LS.set('ss_votes_'+me.room,nv); return nv; }); return; }
@@ -937,7 +946,8 @@ function Battle({me,myP,votes,onVote,onUndo,offline}){
   const [unknown,setUnknown]=useState(()=> new Set(LS.get('ss_unknown_'+me.room+'_'+me.id, [])));  // songs you flagged "don't know"
   const [picking,setPicking]=useState(false);
   const lastKey=useRef(''); const shownAt=useRef(Date.now());
-  const roll=(skip)=>{ const [a,b]=pickMatchup(myP,lastKey.current,scope,skip||unknown); lastKey.current=pairKey(a,b); shownAt.current=Date.now(); setPair([a,b]); };
+  const roll=(unk)=>{ const ex=new Set(unk||unknown); if(myP&&myP.certified) myP.certified.forEach(id=>ex.add(id));   // skip "don't know" + certified-locked songs
+    const [a,b]=pickMatchup(myP,lastKey.current,scope,ex); lastKey.current=pairKey(a,b); shownAt.current=Date.now(); setPair([a,b]); };
   const next=useCallback(()=>roll(),[myP,scope,unknown]);
   useEffect(()=>{ next(); },[scope]);          // roll a fresh pair on mount and on scope change
   useEffect(()=>{ setPicking(false); },[pair]);
@@ -1048,6 +1058,18 @@ function Pyramid({me,players,duels,onVote,onAnchors,offline}){
     : source==='all' ? collectiveSettledness(players, accPool)
     : settledness(source==='me'? players[me.id] : players[source], accPool);
   const draggable = source==='me' && data.length>1;   // re-rank only your own ranking by dragging
+  // ---- certify: lock in your order for one era → full accuracy on those songs (and a lift to your overall) ----
+  const myCert = (source==='me' && players[me.id]) ? players[me.id].certified : null;
+  const canCertify = source==='me' && album!=='all' && data.length>1;
+  const albumCertified = canCertify && myCert && data.every(d=> myCert.has(d.id));
+  const certify=async()=>{
+    if(!data.length) return;
+    const vals=data.map(d=>d.value), hi=Math.max(...vals), lo=Math.min(...vals);
+    const n=data.length, span=Math.max(hi-lo,(n-1)*4)||(n*4), center=(hi+lo)/2, top=center+span/2, step=n>1?span/(n-1):0;
+    const anchors=data.map((d,i)=>({id:d.id, rating:Math.round((top-step*i)*100)/100, mark:'certified'}));  // lock the displayed order
+    setSel(data[0].id);
+    if(onAnchors) await onAnchors(anchors);
+  };
 
   // ---- drag-to-rerank: drop writes a rating "anchor" that places the song exactly, flowing into all your rankings ----
   // Listeners live on window (not the tile) so the release always registers even if touch pointer-capture drops mid-drag.
@@ -1109,6 +1131,7 @@ function Pyramid({me,players,duels,onVote,onAnchors,offline}){
       if(!dr.moved){ setSel(dr.id); return; }           // it was a tap → just open the detail card
       const d=dataRef.current, dragId=d[dr.idx]&&d[dr.idx].id; if(!dragId) return;
       const anchors=placeDrop(d, dr.idx, dr.over); if(!anchors.length) return;
+      anchors.forEach(an=>{ an.mark = an.id===dragId ? 'placed' : 'anchor'; });   // the song you moved counts toward accuracy
       setSel(dragId);
       const fn=onAnchorsRef.current; if(fn) fn(anchors);
     };
@@ -1148,6 +1171,9 @@ function Pyramid({me,players,duels,onVote,onAnchors,offline}){
       </select>
     </div>
     ${settled && settled.inPlay>0 && html`<p class="pyr-settled"><b>~${settled.pct}% accurate</b> · ${settled.inPlay} of ${accDenom} ranked${album!=='all'?' here':''}${settled.pct<65?' · '+(source==='me'?'keep battling':source==='all'?'getting there':'still early'):''}</p>`}
+    ${canCertify && html`<div style="text-align:center;margin:9px 0 0">
+      <button class="btn outline sm" onClick=${certify} style=${albumCertified?'border-color:var(--accent);color:var(--accent)':''}>${albumCertified?'✓ '+groupName(album)+' certified — re-lock':'Certify my '+groupName(album)+' ranking'}</button>
+    </div>`}
     ${data.length>28 && html`<div class="pyr-count">
       ${[25,50,100].filter(n=>n<data.length).map(n=> html`<button class=${showN===n?'on':''} onClick=${()=>{setShowN(n);setSel(null);}}>${n}</button>`)}
       <button class=${shown>=data.length?'on':''} onClick=${()=>{setShowN(data.length);setSel(null);}}>all ${data.length}</button>
