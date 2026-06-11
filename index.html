@@ -101,10 +101,11 @@
   .bars .bt > i{display:block; height:100%; background:var(--accent)}
   .bars .bv{width:52px; text-align:right; font-variant-numeric:tabular-nums; font-size:13px; color:var(--ink2)}
   /* pyramid */
-  .pyramid{display:flex; flex-direction:column; align-items:center; gap:5px; margin:12px 0 12px; padding:14px 5px 16px;
+  .pyramid{display:flex; flex-direction:column; align-items:center; gap:5px; margin:12px 0 12px; padding:14px 10px 18px;
+    width:min(95vw, 1180px); position:relative; left:50%; transform:translateX(-50%);   /* break out of the narrow column & center on the page */
     background:radial-gradient(130% 70% at 50% -8%, rgba(122,92,52,.09), transparent 66%); border-radius:16px}
   .pyr-row{display:flex; gap:5px; justify-content:center; width:100%}
-  .pyr-cell{flex:1 1 0; min-width:0; max-width:128px; min-height:54px; border:none; border-radius:7px; cursor:pointer;
+  .pyr-cell{flex:1 1 0; min-width:0; max-width:148px; min-height:54px; border:none; border-radius:7px; cursor:pointer;
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:5px 3px; position:relative; overflow:hidden;
     color:#fff; font-family:var(--sans); -webkit-user-select:none; user-select:none;
     box-shadow:0 2px 4px rgba(52,38,22,.16), inset 0 0 0 1px rgba(255,255,255,.06);
@@ -255,7 +256,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Password to delete profiles (a soft gate for your friend group — change it).
 const ADMIN_PASSWORD = "taylor13";
 // Build tag — shown in the ≡ menu so you can confirm a fresh deploy is live.
-const BUILD = "drag-v7";
+const BUILD = "drag-v8";
 
 /* ============================================================================
    2. THE CATALOG — every distinct Taylor Swift song (re-recordings collapsed
@@ -947,7 +948,8 @@ function Pyramid({me,players,duels,onVote,onAnchors,offline}){
   const [source,setSource]=useState('me');   // 'me' | 'all' | 'clashes' | personId
   const [album,setAlbum]=useState('all');
   const [sel,setSel]=useState(null);
-  const [showN,setShowN]=useState(28);       // how many ranked songs the pyramid renders
+  const [showN,setShowN]=useState(()=> typeof window!=='undefined' && window.innerWidth>=680 ? 55 : 28);  // grander default on desktop
+  const [vw,setVw]=useState(typeof window!=='undefined'?window.innerWidth:760);  // viewport width → fan wider on desktop
   const [rerank,setRerank]=useState(null);   // song id being re-ranked
   const [drag,setDrag]=useState(null);       // {id,idx} the tile being dragged
   const [ghost,setGhost]=useState(null);     // {x,y,name} floating label
@@ -967,8 +969,9 @@ function Pyramid({me,players,duels,onVote,onAnchors,offline}){
     if(album!=='all') l=l.filter(r=> albumOf(r.id)===album);
     return l;
   },[source,album,players,duels,me.id]);
+  useEffect(()=>{ const f=()=>setVw(window.innerWidth); window.addEventListener('resize',f); return ()=>window.removeEventListener('resize',f); },[]);
   if(offline) return html`<${Empty} title="The Pyramid is live-only" sub="Connect your group to see everyone's rankings stacked into a pyramid." />`;
-  const MAXW=7;                                    // rows widen 1,2,3..7 then stay 7 across (so it grows DOWN, not sideways)
+  const MAXW= vw>=1180?13 : vw>=920?11 : vw>=680?9 : 7;   // rows widen 1,2,3.. up to this, then hold — wider on big screens
   const shown=Math.max(1, Math.min(showN||data.length, data.length));
   const rows=[]; let i=0,r=1;
   while(i<shown){ const w=Math.min(r,MAXW,shown-i); rows.push({items:data.slice(i,i+w), start:i}); i+=w; r++; }
