@@ -260,7 +260,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Password to delete profiles (a soft gate for your friend group — change it).
 const ADMIN_PASSWORD = "taylor13";
 // Build tag — shown in the ≡ menu so you can confirm a fresh deploy is live.
-const BUILD = "drag-v16";
+const BUILD = "drag-v17";
 
 /* ============================================================================
    2. THE CATALOG — every distinct Taylor Swift song (re-recordings collapsed
@@ -478,6 +478,7 @@ function directClashes(me, other){
    INTRA_TARGET distinct within-album battles, then we move to the next album.
    Phase 2 — finals: once every album is ranked, compare the best across albums. */
 const INTRA_TARGET = 5;
+const NO_EXCLUDE = new Set();
 function pairKey(a,b){ return [a,b].sort().join('|'); }
 function order(a,b){ return Math.random()<0.5 ? [a,b] : [b,a]; }
 function judgedSet(me){ return new Set(me ? [...me.directed].map(d=>{const[w,l]=d.split('>');return pairKey(w,l);}) : []); }
@@ -497,7 +498,8 @@ function bestPartner(A, ids, me, judged, lastKey){
   const top = pool.slice(0, Math.min(6, pool.length));
   return top[(Math.random()*top.length)|0];
 }
-function pickMatchup(me, lastKey, scope){
+function pickMatchup(me, lastKey, scope, exclude){
+  const skip = exclude || NO_EXCLUDE;     // songs the player flagged "don't know" — never serve them
   const countOf = id => (me && me.counts[id]) || 0;
   const ratingOf = id => (me && me.ratings[id]!=null) ? me.ratings[id] : BASE;
   const judged = judgedSet(me);
@@ -505,17 +507,18 @@ function pickMatchup(me, lastKey, scope){
   // Single-album focus ("mini round"): only battles within that one album
   if (scope && scope!=='all'){
     const g = ALBUM_GROUPS.find(x=> x.key===scope);
-    if (g && g.songs.length>1){
-      const pool=[...g.songs].sort((a,b)=> countOf(a)-countOf(b) || Math.random()-0.5);
-      const minC=countOf(pool[0]); const leasts=g.songs.filter(id=> countOf(id)<=minC+1);
+    const gs = g ? g.songs.filter(id=> !skip.has(id)) : [];
+    if (gs.length>1){
+      const pool=[...gs].sort((a,b)=> countOf(a)-countOf(b) || Math.random()-0.5);
+      const minC=countOf(pool[0]); const leasts=gs.filter(id=> countOf(id)<=minC+1);
       const A=leasts[(Math.random()*leasts.length)|0];
-      const B=bestPartner(A, g.songs, me, judged, lastKey);
+      const B=bestPartner(A, gs, me, judged, lastKey);
       if (B) return order(A,B);
     }
   }
 
   // ---- Rank-all: ADAPTIVE pairing. Bring songs in & connect the graph (cross-album), then sharpen the closest calls. ----
-  const all = SONG_LIST.map(s=>s.id);
+  const all = SONG_LIST.map(s=>s.id).filter(id=> !skip.has(id));
   const BASELINE = 2;   // anchor every song with at least this many comparisons so its rating is meaningful
   function introduce(){                 // give an under-anchored song a fresh, informative, cross-album comparison
     const bare = all.filter(id=> countOf(id) < BASELINE);
@@ -922,9 +925,14 @@ function Battle({me,myP,votes,onVote,onUndo,offline}){
   const [busy,setBusy]=useState(false);
   const [scope,setScope]=useState(LS.get('ss_scope_'+me.room,'all'));   // remembered across returns
   const [last,setLast]=useState(null);     // {id, pair} of the most recent pick, for undo
+  const [unknown,setUnknown]=useState(()=> new Set(LS.get('ss_unknown_'+me.room+'_'+me.id, [])));  // songs you flagged "don't know"
+  const [picking,setPicking]=useState(false);
   const lastKey=useRef(''); const shownAt=useRef(Date.now());
-  const next=useCallback(()=>{ const [a,b]=pickMatchup(myP,lastKey.current,scope); lastKey.current=pairKey(a,b); shownAt.current=Date.now(); setPair([a,b]); },[myP,scope]);
+  const roll=(skip)=>{ const [a,b]=pickMatchup(myP,lastKey.current,scope,skip||unknown); lastKey.current=pairKey(a,b); shownAt.current=Date.now(); setPair([a,b]); };
+  const next=useCallback(()=>roll(),[myP,scope,unknown]);
   useEffect(()=>{ next(); },[scope]);          // roll a fresh pair on mount and on scope change
+  useEffect(()=>{ setPicking(false); },[pair]);
+  const markUnknown=(id)=>{ const nu=new Set(unknown); nu.add(id); setUnknown(nu); LS.set('ss_unknown_'+me.room+'_'+me.id,[...nu]); setPicking(false); roll(nu); };
   const choose=async(w,l)=>{ if(busy)return; setBusy(true); const shown=pair; const ms=Math.min(Date.now()-shownAt.current,600000);
     const id=await onVote(w,l,ms); setBusy(false); if(id) setLast({id, pair:shown}); next(); };
   const undo=async()=>{ if(busy||!last) return; const L=last; setLast(null); setPair(L.pair); lastKey.current=pairKey(L.pair[0],L.pair[1]); shownAt.current=Date.now(); if(onUndo) await onUndo(L.id); };
@@ -971,7 +979,14 @@ function Battle({me,myP,votes,onVote,onUndo,offline}){
     <div class="actions-row">
       ${last && html`<button class="btn outline sm" onClick=${undo}>↶ Go back</button>`}
       <button class="btn outline sm" onClick=${next}>Skip</button>
-    </div>`;
+      <button class="btn outline sm" onClick=${()=>setPicking(p=>!p)}>I don't know one</button>
+    </div>
+    ${picking && html`<div class="actions-row" style="flex-wrap:wrap;margin-top:12px">
+      <span class="label" style="align-self:center">don't know which?</span>
+      <button class="btn outline sm" onClick=${()=>markUnknown(a)}>${fmtSong(a)}</button>
+      <button class="btn outline sm" onClick=${()=>markUnknown(b)}>${fmtSong(b)}</button>
+      <button class="btn outline sm" style="border-color:transparent;color:var(--muted)" onClick=${()=>setPicking(false)}>cancel</button>
+    </div>`}`;
 }
 function SongCard({id,side,onPick,plain}){
   const s=SONG_BY_ID[id];
