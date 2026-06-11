@@ -265,7 +265,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Password to delete profiles (a soft gate for your friend group — change it).
 const ADMIN_PASSWORD = "taylor13";
 // Build tag — shown in the ≡ menu so you can confirm a fresh deploy is live.
-const BUILD = "drag-v24";
+const BUILD = "drag-v25";
 
 /* ============================================================================
    2. THE CATALOG — every distinct Taylor Swift song (re-recordings collapsed
@@ -1115,6 +1115,16 @@ function Pyramid({me,players,collective,duels,onVote,onAnchors,offline}){
     setSel(data[0].id);
     if(onAnchors) await onAnchors(anchors);
   };
+  // ---- export the current ranking as a list (paste into a free importer → Apple Music / Spotify playlist) ----
+  const [copied,setCopied]=useState(false);
+  const exportName = (source==='all'?'Group':source==='me'?'My':((players[source]&&players[source].name)||'')+'’s')
+    + (album!=='all'?' '+groupName(album):' Taylor Swift') + ' ranking';
+  const doExport=()=>{
+    const text = data.map(d=> fmtSong(d.id)+' - Taylor Swift').join('\n');
+    const done=()=>{ setCopied(true); setTimeout(()=>setCopied(false),5000); };
+    if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done,done);
+    else { try{ const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }catch(_){}; done(); }
+  };
 
   // ---- drag-to-rerank: drop writes a rating "anchor" that places the song exactly, flowing into all your rankings ----
   // Listeners live on window (not the tile) so the release always registers even if touch pointer-capture drops mid-drag.
@@ -1218,6 +1228,10 @@ function Pyramid({me,players,collective,duels,onVote,onAnchors,offline}){
     ${settled && settled.inPlay>0 && html`<p class="pyr-settled"><b>~${settled.pct}% accurate</b> · ${settled.inPlay} of ${accDenom} ranked${album!=='all'?' here':''}${settled.pct<65?' · '+(source==='me'?'keep battling':source==='all'?'getting there':'still early'):''}</p>`}
     ${canCertify && html`<div style="text-align:center;margin:9px 0 0">
       <button class="btn outline sm" onClick=${certify} style=${albumCertified?'border-color:var(--accent);color:var(--accent)':''}>${albumCertified?'✓ '+groupName(album)+' certified — re-lock':'Certify my '+groupName(album)+' ranking'}</button>
+    </div>`}
+    ${data.length>1 && html`<div style="text-align:center;margin:9px 0 0">
+      <button class="btn outline sm" onClick=${doExport}>↗ Export to a playlist</button>
+      ${copied && html`<p class="pyr-settled" style="margin-top:8px;max-width:42ch;margin-left:auto;margin-right:auto"><b>Copied ${data.length} songs</b> (“${exportName}”). Paste into a free importer like <b>Soundiiz</b> or <b>TuneMyMusic</b> to build an Apple Music or Spotify playlist.</p>`}
     </div>`}
     ${data.length>28 && html`<div class="pyr-count">
       ${[25,50,100].filter(n=>n<data.length).map(n=> html`<button class=${showN===n?'on':''} onClick=${()=>{setShowN(n);setSel(null);}}>${n}</button>`)}
