@@ -256,7 +256,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Password to delete profiles (a soft gate for your friend group — change it).
 const ADMIN_PASSWORD = "taylor13";
 // Build tag — shown in the ≡ menu so you can confirm a fresh deploy is live.
-const BUILD = "drag-v9";
+const BUILD = "drag-v10";
 
 /* ============================================================================
    2. THE CATALOG — every distinct Taylor Swift song (re-recordings collapsed
@@ -417,9 +417,9 @@ function leaderboard(p){
 function groupConsensus(players){
   const agg = {};
   for (const pid in players){ const p = players[pid];
-    for (const id in p.ratings){ if ((p.counts[id]||0) < 1) continue;
-      (agg[id] ||= {sum:0,n:0}); agg[id].sum += p.ratings[id]; agg[id].n++; } }
-  return Object.keys(agg).map(id=>({ id, rating:agg[id].sum/agg[id].n, raters:agg[id].n }))
+    for (const id in p.ratings){ const c=p.counts[id]||0; if (c < 1) continue;
+      (agg[id] ||= {sum:0,n:0,comps:0}); agg[id].sum += p.ratings[id]; agg[id].n++; agg[id].comps += c; } }
+  return Object.keys(agg).map(id=>({ id, rating:agg[id].sum/agg[id].n, raters:agg[id].n, comps:agg[id].comps }))
     .sort((a,b)=> b.rating - a.rating);
 }
 const PREF_TH = 24;
@@ -502,27 +502,33 @@ function pickMatchup(me, lastKey, scope){
     }
   }
 
-  // Phase 1: earliest group that still has under-ranked songs
-  for (const g of ALBUM_GROUPS){
-    const target = Math.min(Math.max(INTRA_TARGET, MINCOV), g.songs.length-1);   // enough comparisons to clear the coverage gate
-    const under = g.songs.filter(id=> countOf(id) < target);
-    if (!under.length) continue;                 // this album is ranked — move on
-    under.sort((a,b)=> countOf(a)-countOf(b) || Math.random()-0.5);
-    const minC = countOf(under[0]);
-    const leasts = under.filter(id=> countOf(id) <= minC+1);
-    const A = leasts[(Math.random()*leasts.length)|0];
-    const B = bestPartner(A, g.songs, me, judged, lastKey);
-    if (B) return order(A,B);
+  // Rank-all mode: serve the combos that POPULATE your pyramid fastest — push songs OVER the coverage gate
+  // (depth toward MINCOV), instead of spreading one comparison thinly across all 262 songs.
+  const all = SONG_LIST.map(s=>s.id);
+  const gate = MINCOV;
+  const need = all.filter(id=> countOf(id) < gate);          // songs not yet settled enough to appear
+  if (need.length){
+    need.sort((a,b)=> countOf(b)-countOf(a) || Math.random()-0.5);   // closest-to-crossing first
+    const A = need[0];
+    let cands = all.filter(id=> id!==A && !judged.has(pairKey(A,id)) && pairKey(A,id)!==lastKey);
+    if (!cands.length) cands = all.filter(id=> id!==A && !judged.has(pairKey(A,id)));
+    if (cands.length){
+      cands.sort((x,y)=>{
+        const ux = countOf(x)<gate?0:1, uy = countOf(y)<gate?0:1;   // under-gate partners first (advance two songs at once)
+        return (ux-uy) || (countOf(y)-countOf(x)) || (Math.abs(ratingOf(x)-ratingOf(A))-Math.abs(ratingOf(y)-ratingOf(A)));
+      });
+      return order(A, cands[0]);
+    }
   }
-
-  // Phase 2: every album ranked — finals across albums, favouring the best
-  const ranked = SONG_LIST.map(s=>s.id).sort((a,b)=> ratingOf(b)-ratingOf(a));
-  const poolA = ranked.slice(0, Math.max(24, Math.ceil(TOTAL*0.4)));
-  poolA.sort((a,b)=> countOf(a)-countOf(b) || Math.random()-0.5);
-  const A = poolA[(Math.random()*Math.min(10,poolA.length))|0];
-  const crossIds = SONG_LIST.filter(s=> s.albumKey!==albumOf(A)).map(s=>s.id);
-  const B = bestPartner(A, crossIds, me, judged, lastKey) || ranked.find(id=>id!==A);
-  return order(A,B);
+  // Refine phase — everything's past the gate: sharpen close calls you haven't settled yet.
+  const ranked = all.sort((a,b)=> ratingOf(b)-ratingOf(a));
+  for (let t=0;t<24;t++){
+    const A = ranked[(Math.random()*ranked.length)|0], i = ranked.indexOf(A);
+    const nbrs = ranked.slice(Math.max(0,i-3), i+4).filter(id=> id!==A && !judged.has(pairKey(A,id)) && pairKey(A,id)!==lastKey);
+    if (nbrs.length) return order(A, nbrs[(Math.random()*nbrs.length)|0]);
+  }
+  const A2 = ranked[0], B2 = ranked.find(id=> id!==A2 && !judged.has(pairKey(A2,id))) || ranked[1];
+  return order(A2, B2);
 }
 function freshPair(used){
   const u=new Set(used);
@@ -975,7 +981,7 @@ function Pyramid({me,players,duels,onVote,onAnchors,offline}){
       const wins={}; for(const d of (duels||[])){ if(d.winner && SONG_BY_ID[d.winner]) wins[d.winner]=(wins[d.winner]||0)+1; }
       l=Object.keys(wins).map(id=>({id, value:wins[id], count:wins[id], meta:wins[id]+' clash'+(wins[id]===1?'':'es')+' won'})).sort((a,b)=> b.value-a.value);
     } else if(source==='all'){
-      l=groupConsensus(players).map(r=>({id:r.id, value:r.rating, count:r.raters, meta:Math.round(r.rating)+' avg · '+r.raters+' ranker'+(r.raters===1?'':'s')}));
+      l=groupConsensus(players).map(r=>({id:r.id, value:r.rating, count:r.comps, meta:Math.round(r.rating)+' avg · '+r.raters+' ranker'+(r.raters===1?'':'s')+' · '+r.comps+' comparison'+(r.comps===1?'':'s')}));
     } else {
       const p=source==='me'? players[me.id] : players[source];
       l=leaderboard(p).map(r=>({id:r.id, value:r.rating, count:r.count, meta:Math.round(r.rating)+' rating · '+r.count+' comparison'+(r.count===1?'':'s')}));
@@ -983,8 +989,8 @@ function Pyramid({me,players,duels,onVote,onAnchors,offline}){
     if(album!=='all') l=l.filter(r=> albumOf(r.id)===album);
     return l;
   },[source,album,players,duels,me.id]);
-  const playerSource = source!=='all' && source!=='clashes';       // 'me' or a friend → has real comparison counts
-  const gateOn = settledOnly && playerSource && minCov>1;
+  const gateable = source!=='clashes';       // you, a friend, or the community pyramid all gate on real comparison coverage
+  const gateOn = settledOnly && gateable && minCov>1;
   const data=useMemo(()=> gateOn ? fullData.filter(r=> (r.count||0)>=minCov) : fullData, [fullData, gateOn, minCov]);
   const hidden = fullData.length - data.length;
   useEffect(()=>{ const f=()=>setVw(window.innerWidth); window.addEventListener('resize',f); return ()=>window.removeEventListener('resize',f); },[]);
@@ -1104,7 +1110,7 @@ function Pyramid({me,players,duels,onVote,onAnchors,offline}){
       <input type="number" min="1" max=${data.length} value=${shown}
         onInput=${e=>{ const v=parseInt(e.target.value,10); if(!isNaN(v)) setShowN(Math.max(1,Math.min(v,data.length))); }} title="type any number" />
     </div>`}
-    ${playerSource && (fullData.length>0) && html`<div class="pyr-count" style="margin-top:1px">
+    ${gateable && (fullData.length>0) && html`<div class="pyr-count" style="margin-top:1px">
       <span class="cl">accuracy</span>
       <button class=${settledOnly?'on':''} onClick=${()=>{setSettledOnly(s=>!s);setSel(null);}} title="Only show songs that have enough head-to-head comparisons to trust their spot">settled only</button>
       ${settledOnly && html`<span class="cl" style="text-transform:none">≥</span>`}
