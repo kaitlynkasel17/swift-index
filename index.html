@@ -260,7 +260,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Password to delete profiles (a soft gate for your friend group — change it).
 const ADMIN_PASSWORD = "taylor13";
 // Build tag — shown in the ≡ menu so you can confirm a fresh deploy is live.
-const BUILD = "drag-v17";
+const BUILD = "drag-v18";
 
 /* ============================================================================
    2. THE CATALOG — every distinct Taylor Swift song (re-recordings collapsed
@@ -426,6 +426,14 @@ function settledness(p, pool){
   const ids = pool || Object.keys(SONG_BY_ID);
   for (const id of ids){ if (!SONG_BY_ID[id]) continue; const c=p.counts[id]||0; if (c>0){ inPlay++; sum+=Math.min(c,D); } }
   return { pct: Math.round(100*sum/(D*ids.length)), inPlay };
+}
+// Accuracy of the COMMUNITY ranking — pools every player's comparisons per song.
+function collectiveSettledness(players){
+  const D=5; const comps={};
+  for (const pid in players){ const c=players[pid].counts; for (const id in c){ if (SONG_BY_ID[id]) comps[id]=(comps[id]||0)+c[id]; } }
+  let sum=0, inPlay=0;
+  for (const id in comps){ if (comps[id]>0){ inPlay++; sum+=Math.min(comps[id],D); } }
+  return { pct: Math.round(100*sum/(D*TOTAL)), inPlay };
 }
 function groupConsensus(players){
   const agg = {};
@@ -1033,8 +1041,9 @@ function Pyramid({me,players,duels,onVote,onAnchors,offline}){
   const selected = (sel!=null && data.find(d=>d.id===sel)) || data[0];
   const selRank = selected ? data.findIndex(d=>d.id===selected.id)+1 : 0;
   const srcLabel = source==='me'?'Your ranking' : source==='all'?'Collective ranking' : source==='clashes'?'Clash winners' : ((players[source]&&players[source].name)||'?')+"'s ranking";
-  const isPerson = source!=='all' && source!=='clashes';
-  const settled = isPerson ? settledness(source==='me'? players[me.id] : players[source]) : null;
+  const settled = source==='clashes' ? null
+    : source==='all' ? collectiveSettledness(players)
+    : settledness(source==='me'? players[me.id] : players[source]);
   const draggable = source==='me' && data.length>1;   // re-rank only your own ranking by dragging
 
   // ---- drag-to-rerank: drop writes a rating "anchor" that places the song exactly, flowing into all your rankings ----
@@ -1135,7 +1144,7 @@ function Pyramid({me,players,duels,onVote,onAnchors,offline}){
         ${ALBUM_GROUPS.map(g=> html`<option value=${g.key}>${g.name}</option>`)}
       </select>
     </div>
-    ${settled && settled.inPlay>0 && html`<p class="pyr-settled"><b>~${settled.pct}% accurate</b> · ${settled.inPlay} of ${TOTAL} ranked${settled.pct<65?' · '+(source==='me'?'keep battling':'still early'):''}</p>`}
+    ${settled && settled.inPlay>0 && html`<p class="pyr-settled"><b>~${settled.pct}% accurate</b> · ${settled.inPlay} of ${TOTAL} ranked${settled.pct<65?' · '+(source==='me'?'keep battling':source==='all'?'getting there':'still early'):''}</p>`}
     ${data.length>28 && html`<div class="pyr-count">
       ${[25,50,100].filter(n=>n<data.length).map(n=> html`<button class=${showN===n?'on':''} onClick=${()=>{setShowN(n);setSel(null);}}>${n}</button>`)}
       <button class=${shown>=data.length?'on':''} onClick=${()=>{setShowN(data.length);setSel(null);}}>all ${data.length}</button>
