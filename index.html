@@ -260,7 +260,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Password to delete profiles (a soft gate for your friend group — change it).
 const ADMIN_PASSWORD = "taylor13";
 // Build tag — shown in the ≡ menu so you can confirm a fresh deploy is live.
-const BUILD = "drag-v20";
+const BUILD = "drag-v21";
 
 /* ============================================================================
    2. THE CATALOG — every distinct Taylor Swift song (re-recordings collapsed
@@ -537,9 +537,11 @@ function pickMatchup(me, lastKey, scope, exclude){
 
   // ---- Rank-all: ADAPTIVE pairing. Bring songs in & connect the graph (cross-album), then sharpen the closest calls. ----
   const all = SONG_LIST.map(s=>s.id).filter(id=> !skip.has(id));
-  const BASELINE = 2;   // anchor every song with at least this many comparisons so its rating is meaningful
-  function introduce(){                 // give an under-anchored song a fresh, informative, cross-album comparison
-    const bare = all.filter(id=> countOf(id) < BASELINE);
+  const ACC_TARGET = 5;   // the accuracy ceiling — keep raising songs toward this so each battle lifts your accuracy most
+  const aff = (me && me.affirmed) ? me.affirmed : null;
+  const needsAcc = id => countOf(id) < ACC_TARGET && !(aff && aff.has(id));   // battling this song still raises your accuracy
+  function introduce(){                 // serve the comparisons that lift accuracy most: least-settled songs, paired together
+    const bare = all.filter(needsAcc);
     if (!bare.length) return null;
     bare.sort((a,b)=> countOf(a)-countOf(b) || Math.random()-0.5);
     const A = bare[(Math.random()*Math.min(10,bare.length))|0];
@@ -547,8 +549,8 @@ function pickMatchup(me, lastKey, scope, exclude){
     if (!cands.length) cands = all.filter(id=> id!==A && !judged.has(pairKey(A,id)));
     if (!cands.length) return null;
     const rA = ratingOf(A), alA = albumOf(A);
-    cands.sort((x,y)=> ((albumOf(x)===alA?40:0)+Math.abs(ratingOf(x)-rA)+countOf(x)*6)    // prefer a different era, close rating, low count
-                     - ((albumOf(y)===alA?40:0)+Math.abs(ratingOf(y)-rA)+countOf(y)*6));
+    cands.sort((x,y)=> ((needsAcc(x)?0:600)+(albumOf(x)===alA?40:0)+Math.abs(ratingOf(x)-rA)+countOf(x)*6)   // pair two under-target songs (max accuracy gain), diff era, close rating
+                     - ((needsAcc(y)?0:600)+(albumOf(y)===alA?40:0)+Math.abs(ratingOf(y)-rA)+countOf(y)*6));
     const top = cands.slice(0, Math.min(6, cands.length));
     return order(A, top[(Math.random()*top.length)|0]);
   }
