@@ -260,7 +260,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Password to delete profiles (a soft gate for your friend group — change it).
 const ADMIN_PASSWORD = "taylor13";
 // Build tag — shown in the ≡ menu so you can confirm a fresh deploy is live.
-const BUILD = "drag-v21";
+const BUILD = "drag-v22";
 
 /* ============================================================================
    2. THE CATALOG — every distinct Taylor Swift song (re-recordings collapsed
@@ -402,10 +402,12 @@ function computeStats(votes){
     const anchor = isAnchor(v.loser);        // drag-drop: set this song's rating directly
     let p = players[v.player_id];
     if (!p){ p = players[v.player_id] = { id:v.player_id, name:v.player_name, color:v.player_color||"#7a5c34",
-      ratings:{}, counts:{}, n:0, directed:new Set(), affirmed:new Set(), certified:new Set() }; }
+      ratings:{}, counts:{}, n:0, directed:new Set(), affirmed:new Set(), certified:new Set(), certRank:{} }; }
     p.name = v.player_name; if (v.player_color) p.color = v.player_color;
     if (anchor){ const rt=anchorRating(v); if(!isNaN(rt)) p.ratings[v.winner]=rt; if(!p.counts[v.winner]) p.counts[v.winner]=1;
-      const k=affirmKind(v.loser); if(k){ p.affirmed.add(v.winner); if(k==='certified') p.certified.add(v.winner); else p.certified.delete(v.winner); }
+      const k=affirmKind(v.loser); if(k){ p.affirmed.add(v.winner);
+        if(k==='certified'){ p.certified.add(v.winner); if(!isNaN(rt)) p.certRank[v.winner]=rt; }   // certRank = locked internal order
+        else { p.certified.delete(v.winner); delete p.certRank[v.winner]; } }
       continue; }
     const rw = p.ratings[v.winner] ?? BASE, rl = p.ratings[v.loser] ?? BASE;
     const expW = 1/(1+Math.pow(10,(rl-rw)/400));
@@ -415,6 +417,18 @@ function computeStats(votes){
     p.counts[v.loser]  = (p.counts[v.loser]||0)+1;
     p.directed.add(v.winner+'>'+v.loser);
     p.n++;
+  }
+  // Re-lock fully-certified albums: keep your certified internal order, but let cross-album battles
+  // slide the whole block (we recentre it on its current average, so it moves as a unit).
+  for (const pid in players){ const p=players[pid]; if(!p.certified.size) continue;
+    for (const g of ALBUM_GROUPS){ const songs=g.songs;
+      if (songs.length>1 && songs.every(id=> p.certified.has(id))){
+        let sum=0; for(const id of songs) sum += (p.ratings[id] ?? BASE);
+        const avg=sum/songs.length, ordered=[...songs].sort((a,b)=> (p.certRank[b]||0)-(p.certRank[a]||0));
+        const n=ordered.length, step=4, top=avg + step*(n-1)/2;
+        ordered.forEach((id,i)=>{ p.ratings[id]=top - step*i; });   // locked order, recentred on where the block now sits
+      }
+    }
   }
   return players;
 }
@@ -500,12 +514,14 @@ const NO_EXCLUDE = new Set();
 function pairKey(a,b){ return [a,b].sort().join('|'); }
 function order(a,b){ return Math.random()<0.5 ? [a,b] : [b,a]; }
 function judgedSet(me){ return new Set(me ? [...me.directed].map(d=>{const[w,l]=d.split('>');return pairKey(w,l);}) : []); }
+// two songs from the SAME certified album — never battle them (you've locked their order)
+function sameCertAlbum(me, a, b){ return me && me.certified && me.certified.has(a) && me.certified.has(b) && albumOf(a)===albumOf(b); }
 // pick an informative partner for A — one that grows coverage with a NEW comparison
 function bestPartner(A, ids, me, judged, lastKey){
   const ratingOf = id => (me && me.ratings[id]!=null) ? me.ratings[id] : BASE;
   const countOf  = id => (me && me.counts[id]) || 0;
   const rA = ratingOf(A);
-  let cands = ids.filter(id=> id!==A);
+  let cands = ids.filter(id=> id!==A && !sameCertAlbum(me,A,id));
   if (!cands.length) return null;
   // strongly prefer pairings you haven't done — repeats are deduped, so they add no info and no coverage
   let pool = cands.filter(id=> !judged.has(pairKey(A,id)) && pairKey(A,id)!==lastKey);
@@ -562,7 +578,7 @@ function pickMatchup(me, lastKey, scope, exclude){
       for (let d=1;d<=8;d++){ for (const j of [i-d,i+d]){
         if (j<0||j>=ranked.length) continue;
         const B=ranked[j];
-        if (!judged.has(pairKey(A,B)) && pairKey(A,B)!==lastKey) return order(A,B);
+        if (!judged.has(pairKey(A,B)) && pairKey(A,B)!==lastKey && !sameCertAlbum(me,A,B)) return order(A,B);
       }}
     }
     return null;
@@ -948,7 +964,7 @@ function Battle({me,myP,votes,onVote,onUndo,offline}){
   const [unknown,setUnknown]=useState(()=> new Set(LS.get('ss_unknown_'+me.room+'_'+me.id, [])));  // songs you flagged "don't know"
   const [picking,setPicking]=useState(false);
   const lastKey=useRef(''); const shownAt=useRef(Date.now());
-  const roll=(unk)=>{ const ex=new Set(unk||unknown); if(myP&&myP.certified) myP.certified.forEach(id=>ex.add(id));   // skip "don't know" + certified-locked songs
+  const roll=(unk)=>{ const ex=unk||unknown;   // skip only "don't know" songs; certified songs still battle OTHER eras (handled in pickMatchup)
     const [a,b]=pickMatchup(myP,lastKey.current,scope,ex); lastKey.current=pairKey(a,b); shownAt.current=Date.now(); setPair([a,b]); };
   const next=useCallback(()=>roll(),[myP,scope,unknown]);
   useEffect(()=>{ next(); },[scope]);          // roll a fresh pair on mount and on scope change
