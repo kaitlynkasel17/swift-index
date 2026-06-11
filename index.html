@@ -239,6 +239,11 @@
   .sheet-bg{position:fixed; inset:0; background:rgba(27,24,19,.4); z-index:40; display:flex; align-items:flex-end; justify-content:center}
   .sheet{background:var(--paper); border:1px solid var(--line); border-radius:6px 6px 0 0; width:100%; max-width:680px; padding:22px 22px calc(26px + env(safe-area-inset-bottom))}
   @media(min-width:560px){ .sheet-bg{align-items:center} .sheet{border-radius:6px} }
+  .welcome-steps{display:flex; flex-direction:column; gap:15px; margin-top:4px}
+  .wstep{display:flex; gap:12px; align-items:flex-start}
+  .wn{flex:none; width:27px; height:27px; border-radius:999px; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-family:var(--serif); font-size:14px; color:var(--accent)}
+  .wt{font-family:var(--sans); font-size:11.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--ink)}
+  .wd{font-size:14.5px; color:var(--ink2); line-height:1.36; margin-top:3px}
 </style>
 </head>
 <body>
@@ -260,7 +265,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Password to delete profiles (a soft gate for your friend group — change it).
 const ADMIN_PASSWORD = "taylor13";
 // Build tag — shown in the ≡ menu so you can confirm a fresh deploy is live.
-const BUILD = "drag-v23";
+const BUILD = "drag-v24";
 
 /* ============================================================================
    2. THE CATALOG — every distinct Taylor Swift song (re-recordings collapsed
@@ -813,6 +818,7 @@ function App(){
   const [online,setOnline]=useState([]);
   const [loaded,setLoaded]=useState(false);
   const [menu,setMenu]=useState(false);
+  const [welcome,setWelcome]=useState(false);   // first-run onboarding
   const supaRef=useRef(null);
   const lastByGroup=useRef({games:'battle', analytics:'mine'});
   const offline=!conf.ready;
@@ -851,6 +857,7 @@ function App(){
   const players=useMemo(()=>computeStats(activeVotes),[activeVotes]);
   const collective=useMemo(()=>pooledConsensus(activeVotes),[activeVotes]);   // one group ranking from everyone's pooled comparisons
   const myP=me?players[me.id]:null;
+  useEffect(()=>{ if(me && loaded && !LS.get('ss_onboarded',false) && (!myP || (myP.n||0)<3)) setWelcome(true); },[me&&me.id, loaded, myP&&myP.n]);   // greet brand-new players
 
   const submitVote=useCallback(async(winner,loser,decidedMs)=>{
     if(!me) return null;
@@ -935,8 +942,10 @@ function App(){
       `}
     </main>
     <${Tabs} tab=${tab} setTab=${setTab} goGroup=${goGroup} clashCount=${clashCount} />
+    ${welcome && html`<${Welcome} onClose=${()=>{ LS.set('ss_onboarded',true); setWelcome(false); }} />`}
     ${menu && html`<${Menu} me=${me} offline=${offline} players=${players} onClose=${()=>setMenu(false)} onReset=${resetMine}
       onDeleteProfile=${deleteProfile} onLogout=${()=>{ LS.del('ss_me'); setMe(null); setMenu(false); }}
+      onHow=${()=>{ setMenu(false); setWelcome(true); }}
       onSwitch=${()=>{ LS.del('ss_me'); setMe(null); setMenu(false); }} />`}
   `;
 }
@@ -2087,8 +2096,25 @@ function Join({offline,onJoin}){
     </div>`}
   </div></div>`;
 }
+/* ---------- Welcome / onboarding ---------- */
+function Welcome({onClose}){
+  const steps=[
+    ['Battle','Tap the better of two songs. A full ranking builds itself — no dragging 261 songs into order.'],
+    ['Your Pyramid','Watch your ranking take shape. Drag a tile to fine-tune it, or “certify” an era to lock it in.'],
+    ['Circle & Clashes','See the group’s consensus — and exactly where you and a friend disagree.'],
+    ['Duel','Settle a clash live with a friend: pick the best lyric, vote, and go again until you agree.'],
+  ];
+  return html`<div class="sheet-bg" onClick=${onClose}><div class="sheet" onClick=${e=>e.stopPropagation()}>
+    <div style="font-family:var(--serif);font-size:25px;text-align:center;letter-spacing:.2px">The <span style="font-style:italic;color:var(--accent)">Swift</span> Index</div>
+    <p class="muted" style="text-align:center;margin:6px auto 18px;max-width:34ch">Rank every Taylor Swift song with your friends — and find exactly where you clash.</p>
+    <div class="welcome-steps">
+      ${steps.map(([t,d],i)=> html`<div class="wstep"><div class="wn">${i+1}</div><div><div class="wt">${t}</div><div class="wd">${d}</div></div></div>`)}
+    </div>
+    <button class="btn" style="width:100%;margin-top:20px" onClick=${onClose}>Start ranking</button>
+  </div></div>`;
+}
 /* ---------- Menu ---------- */
-function Menu({me,offline,players,onClose,onReset,onDeleteProfile,onSwitch}){
+function Menu({me,offline,players,onClose,onReset,onDeleteProfile,onSwitch,onHow}){
   const [view,setView]=useState('main');     // 'main' | 'manage'
   const [pw,setPw]=useState(''); const [unlocked,setUnlocked]=useState(false); const [busy,setBusy]=useState(null);
   const profiles=Object.values(players||{}).sort((a,b)=> b.n-a.n);
@@ -2121,6 +2147,7 @@ function Menu({me,offline,players,onClose,onReset,onDeleteProfile,onSwitch}){
       <div><div style="font-size:20px">${me.name}</div><div class="label">room ${me.room}${offline?' · solo':''}</div></div>
     </div>
     ${!offline && html`<div class="notice" style="margin-bottom:14px;font-size:13px">Your ranking and duel history save automatically to <b>${me.name}</b> in <b>${me.room}</b>. Rejoin with the same name + room on any device to pick up where you left off.</div>`}
+    <button class="btn outline" style="width:100%;margin-bottom:10px" onClick=${onHow}>How it works</button>
     <button class="btn outline" style="width:100%;margin-bottom:10px" onClick=${onSwitch}>Switch / change profile</button>
     <button class="btn outline" style="width:100%;margin-bottom:10px" onClick=${onReset}>Reset my battles</button>
     ${!offline && html`<button class="btn outline" style="width:100%;margin-bottom:10px" onClick=${()=>setView('manage')}>Delete profiles…</button>`}
