@@ -260,7 +260,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Password to delete profiles (a soft gate for your friend group — change it).
 const ADMIN_PASSWORD = "taylor13";
 // Build tag — shown in the ≡ menu so you can confirm a fresh deploy is live.
-const BUILD = "drag-v22";
+const BUILD = "drag-v23";
 
 /* ============================================================================
    2. THE CATALOG — every distinct Taylor Swift song (re-recordings collapsed
@@ -459,13 +459,30 @@ function collectiveSettledness(players, pool){
   for (const id of ids){ const ct=comps[id]||0; if (ct>0){ inPlay++; sum+=Math.min(ct,D); } }
   return { pct: Math.round(100*sum/(D*ids.length)), inPlay };
 }
-function groupConsensus(players){
-  const agg = {};
-  for (const pid in players){ const p = players[pid];
-    for (const id in p.ratings){ const c=p.counts[id]||0; if (c < 1) continue;
-      (agg[id] ||= {sum:0,n:0}); agg[id].sum += p.ratings[id]; agg[id].n++; } }
-  return Object.keys(agg).map(id=>({ id, rating:agg[id].sum/agg[id].n, raters:agg[id].n }))
-    .sort((a,b)=> b.rating - a.rating);
+// Collective ranking = ONE group ranking fit from EVERYONE'S head-to-head comparisons pooled together.
+// Volume-weighted by construction: songs the group compared more get a more-determined rating, and a
+// heavy rater contributes more comparisons than a light one — so a 4-vote friend can't sway it like a
+// 200-vote friend. (Personal drag/certify anchors stay personal; they're assertions, not group data.)
+function pooledConsensus(votes){
+  const sorted=[...votes].sort((a,b)=> new Date(a.created_at)-new Date(b.created_at));
+  const latest=new Map();                       // dedupe each PERSON's pair to their latest call
+  for(const v of sorted){
+    if(isAnchor(v.loser)) continue;
+    if(!SONG_BY_ID[v.winner]||!SONG_BY_ID[v.loser]) continue;
+    const lo=v.winner<v.loser?v.winner:v.loser, hi=v.winner<v.loser?v.loser:v.winner;
+    latest.set(v.player_id+'|'+lo+'|'+hi, v);
+  }
+  const feed=[...latest.values()].sort((a,b)=> new Date(a.created_at)-new Date(b.created_at));
+  const R={}, comps={}, raters={};
+  for(const v of feed){
+    const rw=R[v.winner]??BASE, rl=R[v.loser]??BASE, e=1/(1+Math.pow(10,(rl-rw)/400));
+    R[v.winner]=rw+K*(1-e); R[v.loser]=rl-K*(1-e);
+    comps[v.winner]=(comps[v.winner]||0)+1; comps[v.loser]=(comps[v.loser]||0)+1;
+    (raters[v.winner]||(raters[v.winner]=new Set())).add(v.player_id);
+    (raters[v.loser]||(raters[v.loser]=new Set())).add(v.player_id);
+  }
+  return Object.keys(R).filter(id=>SONG_BY_ID[id]).map(id=>({ id, rating:R[id], raters:raters[id].size, comps:comps[id]||0 }))
+    .sort((a,b)=> b.rating-a.rating);
 }
 const PREF_TH = 24;
 function derivedClashes(me, other){
@@ -832,6 +849,7 @@ function App(){
   // "active" season powers the live ranking / group / clashes; all votes feed analytics & seasons
   const activeVotes=useMemo(()=> votes.filter(v=> (v.season||'current')==='current'), [votes]);
   const players=useMemo(()=>computeStats(activeVotes),[activeVotes]);
+  const collective=useMemo(()=>pooledConsensus(activeVotes),[activeVotes]);   // one group ranking from everyone's pooled comparisons
   const myP=me?players[me.id]:null;
 
   const submitVote=useCallback(async(winner,loser,decidedMs)=>{
@@ -909,8 +927,8 @@ function App(){
       ${!loaded ? html`<p class="muted" style="text-align:center;padding:46px 0" class="label">Loading the room</p>` : html`
         ${tab==='battle' && html`<${Battle} me=${me} myP=${myP} votes=${votes} onVote=${submitVote} onUndo=${deleteVote} offline=${offline} />`}
         ${tab==='mine' && html`<${You} me=${me} myP=${myP} votes=${votes} guesses=${guesses} onFreeze=${freezeSeason} offline=${offline} />`}
-        ${tab==='pyramid' && html`<${Pyramid} me=${me} players=${players} duels=${duelWins} onVote=${submitVote} onAnchors=${submitAnchors} offline=${offline} />`}
-        ${tab==='group' && html`<${Group} me=${me} players=${players} votes=${votes} guesses=${guesses} online=${onlineIds} offline=${offline} />`}
+        ${tab==='pyramid' && html`<${Pyramid} me=${me} players=${players} collective=${collective} duels=${duelWins} onVote=${submitVote} onAnchors=${submitAnchors} offline=${offline} />`}
+        ${tab==='group' && html`<${Group} me=${me} players=${players} collective=${collective} votes=${votes} guesses=${guesses} online=${onlineIds} offline=${offline} />`}
         ${tab==='clash' && html`<${Clashes} me=${me} myP=${myP} players=${players} offline=${offline} />`}
         ${tab==='duel' && html`<${Duel} me=${me} supa=${supaRef.current} online=${online} offline=${offline} onVote=${submitVote} onUndo=${deleteVote} />`}
         ${tab==='guess' && html`<${Guess} me=${me} players=${players} supa=${supaRef.current} guesses=${guesses} offline=${offline} room=${me.room} />`}
@@ -1035,7 +1053,7 @@ function SongCard({id,side,onPick,plain}){
 }
 
 /* ---------- Pyramid: one ranked view, many data sources ---------- */
-function Pyramid({me,players,duels,onVote,onAnchors,offline}){
+function Pyramid({me,players,collective,duels,onVote,onAnchors,offline}){
   const others=Object.values(players).filter(p=>p.id!==me.id);
   const [source,setSource]=useState('me');   // 'me' | 'all' | 'clashes' | personId
   const [album,setAlbum]=useState('all');
@@ -1053,14 +1071,14 @@ function Pyramid({me,players,duels,onVote,onAnchors,offline}){
       const wins={}; for(const d of (duels||[])){ if(d.winner && SONG_BY_ID[d.winner]) wins[d.winner]=(wins[d.winner]||0)+1; }
       l=Object.keys(wins).map(id=>({id, value:wins[id], meta:wins[id]+' clash'+(wins[id]===1?'':'es')+' won'})).sort((a,b)=> b.value-a.value);
     } else if(source==='all'){
-      l=groupConsensus(players).map(r=>({id:r.id, value:r.rating, meta:Math.round(r.rating)+' avg · '+r.raters+' ranker'+(r.raters===1?'':'s')}));
+      l=(collective||[]).map(r=>({id:r.id, value:r.rating, meta:r.raters+' ranker'+(r.raters===1?'':'s')+' · '+r.comps+' group comparison'+(r.comps===1?'':'s')}));
     } else {
       const p=source==='me'? players[me.id] : players[source];
       l=leaderboard(p).map(r=>({id:r.id, value:r.rating, meta:Math.round(r.rating)+' rating · '+r.count+' comparison'+(r.count===1?'':'s')}));
     }
     if(album!=='all') l=l.filter(r=> albumOf(r.id)===album);
     return l;
-  },[source,album,players,duels,me.id]);
+  },[source,album,players,collective,duels,me.id]);
   useEffect(()=>{ const f=()=>setVw(window.innerWidth); window.addEventListener('resize',f); return ()=>window.removeEventListener('resize',f); },[]);
   if(offline) return html`<${Empty} title="The Pyramid is live-only" sub="Connect your group to see everyone's rankings stacked into a pyramid." />`;
   const MAXW= vw>=1180?13 : vw>=920?11 : vw>=680?9 : 7;   // rows widen 1,2,3.. up to this, then hold — wider on big screens
@@ -1404,10 +1422,10 @@ function Seasons({me,votes,onFreeze,offline}){
 }
 
 /* ---------- Group ---------- */
-function Group({me,players,votes,guesses,online,offline}){
+function Group({me,players,collective,votes,guesses,online,offline}){
   const [view,setView]=useState('consensus');
   const [person,setPerson]=useState(null);
-  const consensus=useMemo(()=>groupConsensus(players),[players]);
+  const consensus=collective||[];
   const roster=Object.values(players);
   const recent=useMemo(()=>votes.filter(v=> !isAnchor(v.loser)).sort((a,b)=> new Date(b.created_at)-new Date(a.created_at)).slice(0,20),[votes]);
   if(offline) return html`<${Empty} title="The Circle is live-only" sub="Connect your group (menu) and share the link — then everyone's rankings appear here, updating in real time." />`;
