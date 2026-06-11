@@ -266,7 +266,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Password to delete profiles (a soft gate for your friend group — change it).
 const ADMIN_PASSWORD = "taylor13";
 // Build tag — shown in the ≡ menu so you can confirm a fresh deploy is live.
-const BUILD = "drag-v27";
+const BUILD = "drag-v28";
 
 /* ============================================================================
    2. THE CATALOG — every distinct Taylor Swift song (re-recordings collapsed
@@ -1118,10 +1118,11 @@ function Pyramid({me,players,collective,duels,onVote,onAnchors,offline}){
   };
   // ---- export the current ranking as a list (paste into a free importer → Apple Music / Spotify playlist) ----
   const [showExport,setShowExport]=useState(false);
+  const exportList = data.slice(0, shown);   // export EXACTLY what's on the pyramid — honor the show-count filter
   const exportName = (source==='all'?'Group':source==='me'?'My':((players[source]&&players[source].name)||'')+'’s')
     + (album!=='all'?' '+groupName(album):' Taylor Swift') + ' ranking';
   const copyList=()=>{
-    const text = data.map(d=> fmtSong(d.id)+' - Taylor Swift').join('\n');
+    const text = exportList.map(d=> fmtSong(d.id)+' - Taylor Swift').join('\n');
     if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).catch(()=>{});
     else { try{ const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }catch(_){} }
   };
@@ -1235,7 +1236,8 @@ function Pyramid({me,players,collective,duels,onVote,onAnchors,offline}){
     </div>`}
     ${showExport && html`<div class="sheet-bg" onClick=${()=>setShowExport(false)}><div class="sheet" onClick=${e=>e.stopPropagation()}>
       <div style="font-family:var(--serif);font-size:21px;text-align:center;letter-spacing:.2px">Make a playlist</div>
-      <p class="muted" style="text-align:center;margin:6px auto 16px;max-width:34ch"><b>${data.length} songs copied</b> in order (“${exportName}”). Build the playlist in a free tool — works for both Spotify & Apple Music:</p>
+      <p class="muted" style="text-align:center;margin:6px auto ${shown<data.length?'10px':'16px'};max-width:34ch"><b>${exportList.length} songs copied</b> in order (“${exportName}”). Build the playlist in a free tool — works for both Spotify & Apple Music:</p>
+      ${shown<data.length && html`<p class="muted" style="text-align:center;margin:0 auto 16px;max-width:34ch;font-size:13px">That's the <b>${shown}</b> showing on your pyramid. Want all ${data.length}? Close this and tap <b>“all ${data.length}”</b> first.</p>`}
       <div class="welcome-steps" style="margin-bottom:18px">
         <div class="wstep"><div class="wn">1</div><div><div class="wt">Open the importer</div><div class="wd">Tap the button below — it opens in a new tab.</div></div></div>
         <div class="wstep"><div class="wn">2</div><div><div class="wt">Import a tracklist</div><div class="wd">In Soundiiz: <b>Import → “Import a tracklist,”</b> then paste (⌘V / Ctrl+V).</div></div></div>
