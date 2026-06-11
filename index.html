@@ -256,7 +256,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Password to delete profiles (a soft gate for your friend group — change it).
 const ADMIN_PASSWORD = "taylor13";
 // Build tag — shown in the ≡ menu so you can confirm a fresh deploy is live.
-const BUILD = "drag-v12";
+const BUILD = "drag-v13";
 
 /* ============================================================================
    2. THE CATALOG — every distinct Taylor Swift song (re-recordings collapsed
@@ -412,6 +412,13 @@ function leaderboard(p){
   return Object.keys(p.ratings).filter(id=> SONG_BY_ID[id])
     .map(id=>({ id, rating:p.ratings[id], count:p.counts[id]||0 }))
     .sort((a,b)=> b.rating - a.rating);
+}
+// How trustworthy a ranking is: progress toward ~5 informative comparisons for every song in the catalog.
+function settledness(p){
+  if (!p) return { pct:0, inPlay:0 };
+  const D=5; let sum=0, inPlay=0;
+  for (const id in p.counts){ if (!SONG_BY_ID[id]) continue; const c=p.counts[id]; if (c>0){ inPlay++; sum+=Math.min(c,D); } }
+  return { pct: Math.round(100*sum/(D*TOTAL)), inPlay };
 }
 function groupConsensus(players){
   const agg = {};
@@ -1000,6 +1007,8 @@ function Pyramid({me,players,duels,onVote,onAnchors,offline}){
   const selected = (sel!=null && data.find(d=>d.id===sel)) || data[0];
   const selRank = selected ? data.findIndex(d=>d.id===selected.id)+1 : 0;
   const srcLabel = source==='me'?'Your ranking' : source==='all'?'Collective ranking' : source==='clashes'?'Clash winners' : ((players[source]&&players[source].name)||'?')+"'s ranking";
+  const isPerson = source!=='all' && source!=='clashes';
+  const settled = isPerson ? settledness(source==='me'? players[me.id] : players[source]) : null;
   const draggable = source==='me' && data.length>1;   // re-rank only your own ranking by dragging
 
   // ---- drag-to-rerank: drop writes a rating "anchor" that places the song exactly, flowing into all your rankings ----
@@ -1101,6 +1110,8 @@ function Pyramid({me,players,duels,onVote,onAnchors,offline}){
       </select>
     </div>
     <p class="label" style="text-align:center;margin:8px 0 0;color:var(--accent)">${srcLabel}</p>
+    ${settled && settled.inPlay>0 && html`<p style="text-align:center;margin:3px 0 0;font-family:var(--sans);font-size:11.5px;color:var(--muted)">
+      <span style="color:var(--ink2);font-weight:600">~${settled.pct}% settled</span> · ${settled.inPlay} of ${TOTAL} songs in play${settled.pct<65?' · '+(source==='me'?'keep battling to sharpen it':'still early'):''}</p>`}
     ${data.length>1 && html`<div class="pyr-count">
       <span class="cl">show</span>
       ${[10,25,50,75].filter(n=>n<data.length).map(n=> html`<button class=${showN===n?'on':''} onClick=${()=>{setShowN(n);setSel(null);}}>${n}</button>`)}
