@@ -256,7 +256,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Password to delete profiles (a soft gate for your friend group — change it).
 const ADMIN_PASSWORD = "taylor13";
 // Build tag — shown in the ≡ menu so you can confirm a fresh deploy is live.
-const BUILD = "drag-v8";
+const BUILD = "drag-v9";
 
 /* ============================================================================
    2. THE CATALOG — every distinct Taylor Swift song (re-recordings collapsed
@@ -379,9 +379,19 @@ function anchorRating(v){ const a=Number(String(v.loser).split(':')[1]); return 
 function computeStats(votes){
   const players = {};
   const sorted = [...votes].sort((a,b)=> new Date(a.created_at) - new Date(b.created_at));
+  // Dedupe: each unordered pair {winner,loser} per player counts ONCE — the latest result wins.
+  // (Redoing a battle, or settling it in a Duel, UPDATES your call instead of stacking and skewing the rating.)
+  // After this, counts[song] = number of DISTINCT songs it's been compared against (its "coverage").
+  const latest = new Map(); const anchors = [];
   for (const v of sorted){
+    if (isAnchor(v.loser)){ if(SONG_BY_ID[v.winner]) anchors.push(v); continue; }
+    if (!SONG_BY_ID[v.winner] || !SONG_BY_ID[v.loser]) continue;
+    const lo = v.winner<v.loser?v.winner:v.loser, hi = v.winner<v.loser?v.loser:v.winner;
+    latest.set(v.player_id+'|'+lo+'|'+hi, v);     // sorted ascending → last write = newest result
+  }
+  const feed = [...anchors, ...latest.values()].sort((a,b)=> new Date(a.created_at) - new Date(b.created_at));
+  for (const v of feed){
     const anchor = isAnchor(v.loser);        // drag-drop: set this song's rating directly
-    if (anchor ? !SONG_BY_ID[v.winner] : (!SONG_BY_ID[v.winner] || !SONG_BY_ID[v.loser])) continue;
     let p = players[v.player_id];
     if (!p){ p = players[v.player_id] = { id:v.player_id, name:v.player_name, color:v.player_color||"#7a5c34",
       ratings:{}, counts:{}, n:0, directed:new Set() }; }
@@ -455,22 +465,24 @@ function directClashes(me, other){
    INTRA_TARGET distinct within-album battles, then we move to the next album.
    Phase 2 — finals: once every album is ranked, compare the best across albums. */
 const INTRA_TARGET = 5;
+const MINCOV = 3;   // coverage gate: a song needs this many DISTINCT comparisons before it appears on the Pyramid
 function pairKey(a,b){ return [a,b].sort().join('|'); }
 function order(a,b){ return Math.random()<0.5 ? [a,b] : [b,a]; }
 function judgedSet(me){ return new Set(me ? [...me.directed].map(d=>{const[w,l]=d.split('>');return pairKey(w,l);}) : []); }
-// pick an informative partner for A from a list of candidate ids
+// pick an informative partner for A — one that grows coverage with a NEW comparison
 function bestPartner(A, ids, me, judged, lastKey){
   const ratingOf = id => (me && me.ratings[id]!=null) ? me.ratings[id] : BASE;
   const countOf  = id => (me && me.counts[id]) || 0;
   const rA = ratingOf(A);
-  let cands = ids.filter(id=> id!==A && pairKey(A,id)!==lastKey);
-  if (!cands.length) cands = ids.filter(id=> id!==A);
+  let cands = ids.filter(id=> id!==A);
   if (!cands.length) return null;
-  cands.sort((x,y)=>{
-    const jx=judged.has(pairKey(A,x))?1e6:0, jy=judged.has(pairKey(A,y))?1e6:0;
-    return (jx + Math.abs(ratingOf(x)-rA) + countOf(x)*5) - (jy + Math.abs(ratingOf(y)-rA) + countOf(y)*5);
-  });
-  const top = cands.slice(0, Math.min(6, cands.length));
+  // strongly prefer pairings you haven't done — repeats are deduped, so they add no info and no coverage
+  let pool = cands.filter(id=> !judged.has(pairKey(A,id)) && pairKey(A,id)!==lastKey);
+  if (!pool.length) pool = cands.filter(id=> pairKey(A,id)!==lastKey);
+  if (!pool.length) pool = cands;
+  // among fresh partners, favour the least-covered (advances two songs toward the gate) and closest in rating (most informative)
+  pool.sort((x,y)=> (countOf(x)*8 + Math.abs(ratingOf(x)-rA)) - (countOf(y)*8 + Math.abs(ratingOf(y)-rA)));
+  const top = pool.slice(0, Math.min(6, pool.length));
   return top[(Math.random()*top.length)|0];
 }
 function pickMatchup(me, lastKey, scope){
@@ -492,7 +504,7 @@ function pickMatchup(me, lastKey, scope){
 
   // Phase 1: earliest group that still has under-ranked songs
   for (const g of ALBUM_GROUPS){
-    const target = Math.min(INTRA_TARGET, g.songs.length-1);
+    const target = Math.min(Math.max(INTRA_TARGET, MINCOV), g.songs.length-1);   // enough comparisons to clear the coverage gate
     const under = g.songs.filter(id=> countOf(id) < target);
     if (!under.length) continue;                 // this album is ranked — move on
     under.sort((a,b)=> countOf(a)-countOf(b) || Math.random()-0.5);
@@ -950,25 +962,31 @@ function Pyramid({me,players,duels,onVote,onAnchors,offline}){
   const [sel,setSel]=useState(null);
   const [showN,setShowN]=useState(()=> typeof window!=='undefined' && window.innerWidth>=680 ? 55 : 28);  // grander default on desktop
   const [vw,setVw]=useState(typeof window!=='undefined'?window.innerWidth:760);  // viewport width → fan wider on desktop
+  const [settledOnly,setSettledOnly]=useState(true);   // coverage gate: only show songs with >= minCov comparisons
+  const [minCov,setMinCov]=useState(MINCOV);           // adjustable gate threshold
   const [rerank,setRerank]=useState(null);   // song id being re-ranked
   const [drag,setDrag]=useState(null);       // {id,idx} the tile being dragged
   const [ghost,setGhost]=useState(null);     // {x,y,name} floating label
   const [over,setOver]=useState(null);       // global index of hovered tile
   const dragRef=useRef(null);
-  const data=useMemo(()=>{
+  const fullData=useMemo(()=>{
     let l=[];
     if(source==='clashes'){
       const wins={}; for(const d of (duels||[])){ if(d.winner && SONG_BY_ID[d.winner]) wins[d.winner]=(wins[d.winner]||0)+1; }
-      l=Object.keys(wins).map(id=>({id, value:wins[id], meta:wins[id]+' clash'+(wins[id]===1?'':'es')+' won'})).sort((a,b)=> b.value-a.value);
+      l=Object.keys(wins).map(id=>({id, value:wins[id], count:wins[id], meta:wins[id]+' clash'+(wins[id]===1?'':'es')+' won'})).sort((a,b)=> b.value-a.value);
     } else if(source==='all'){
-      l=groupConsensus(players).map(r=>({id:r.id, value:r.rating, meta:Math.round(r.rating)+' avg · '+r.raters+' ranker'+(r.raters===1?'':'s')}));
+      l=groupConsensus(players).map(r=>({id:r.id, value:r.rating, count:r.raters, meta:Math.round(r.rating)+' avg · '+r.raters+' ranker'+(r.raters===1?'':'s')}));
     } else {
       const p=source==='me'? players[me.id] : players[source];
-      l=leaderboard(p).map(r=>({id:r.id, value:r.rating, meta:Math.round(r.rating)+' rating · '+r.count+' battle'+(r.count===1?'':'s')}));
+      l=leaderboard(p).map(r=>({id:r.id, value:r.rating, count:r.count, meta:Math.round(r.rating)+' rating · '+r.count+' comparison'+(r.count===1?'':'s')}));
     }
     if(album!=='all') l=l.filter(r=> albumOf(r.id)===album);
     return l;
   },[source,album,players,duels,me.id]);
+  const playerSource = source!=='all' && source!=='clashes';       // 'me' or a friend → has real comparison counts
+  const gateOn = settledOnly && playerSource && minCov>1;
+  const data=useMemo(()=> gateOn ? fullData.filter(r=> (r.count||0)>=minCov) : fullData, [fullData, gateOn, minCov]);
+  const hidden = fullData.length - data.length;
   useEffect(()=>{ const f=()=>setVw(window.innerWidth); window.addEventListener('resize',f); return ()=>window.removeEventListener('resize',f); },[]);
   if(offline) return html`<${Empty} title="The Pyramid is live-only" sub="Connect your group to see everyone's rankings stacked into a pyramid." />`;
   const MAXW= vw>=1180?13 : vw>=920?11 : vw>=680?9 : 7;   // rows widen 1,2,3.. up to this, then hold — wider on big screens
@@ -1086,9 +1104,17 @@ function Pyramid({me,players,duels,onVote,onAnchors,offline}){
       <input type="number" min="1" max=${data.length} value=${shown}
         onInput=${e=>{ const v=parseInt(e.target.value,10); if(!isNaN(v)) setShowN(Math.max(1,Math.min(v,data.length))); }} title="type any number" />
     </div>`}
+    ${playerSource && (fullData.length>0) && html`<div class="pyr-count" style="margin-top:1px">
+      <span class="cl">accuracy</span>
+      <button class=${settledOnly?'on':''} onClick=${()=>{setSettledOnly(s=>!s);setSel(null);}} title="Only show songs that have enough head-to-head comparisons to trust their spot">settled only</button>
+      ${settledOnly && html`<span class="cl" style="text-transform:none">≥</span>`}
+      ${settledOnly && html`<input type="number" min="1" max="20" value=${minCov} title="minimum comparisons to appear"
+        onInput=${e=>{ const v=parseInt(e.target.value,10); if(!isNaN(v)) setMinCov(Math.max(1,Math.min(v,20))); }} />`}
+      ${settledOnly && html`<span class="cl" style="text-transform:none;letter-spacing:.02em">comparisons${gateOn&&hidden>0?' · '+hidden+' still settling':''}</span>`}
+    </div>`}
     ${draggable && html`<div class="pyr-drophint">${ drag ? (dropRank>=0 ? '“'+fmtSong(drag.id)+'”  →  #'+(dropRank+1) : 'Drag onto a song to choose a spot…') : '' }</div>`}
     ${data.length===0
-      ? html`<${Empty} title="Nothing here yet" sub=${source==='clashes'?'No clashes have been settled in a duel yet.':'No songs ranked for this view yet.'} />`
+      ? html`<${Empty} title=${gateOn&&hidden>0?'Still settling':'Nothing here yet'} sub=${gateOn&&hidden>0? hidden+' song'+(hidden===1?'':'s')+' need '+minCov+'+ comparisons to lock in. Keep battling, or turn off “settled only.”' : source==='clashes'?'No clashes have been settled in a duel yet.':'No songs ranked for this view yet.'} />`
       : html`<div>
         <div class="pyramid">
           ${rows.map(row=>{ const w=row.items.length; const nmF= w<=2?12 : w<=3?11 : w<=4?10 : w<=5?9.2 : w<=6?8.6 : 8;  // wider rows → smaller names so titles fit
