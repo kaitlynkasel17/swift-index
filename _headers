@@ -1,0 +1,3 @@
+# Never serve a stale index.html — always revalidate so redeploys show up immediately.
+/*
+  Cache-Control: public, max-age=0, must-revalidate

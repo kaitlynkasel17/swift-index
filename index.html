@@ -1,0 +1,1979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>The Swift Index — rank every Taylor Swift song</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f4efe6; --panel:#efe8da; --paper:#faf6ee; --paper2:#f6f1e7;
+    --ink:#1b1813; --ink2:#4a4339; --muted:#8a8073; --faint:#b6ab98;
+    --line:#ddd2bf; --line2:#cabda6;
+    --accent:#7a5c34; --accent2:#9a7b4f; --gold:#9c7c45;
+    --good:#4f6f4a; --bad:#9a4a3f;
+    --serif:'EB Garamond', Georgia, 'Times New Roman', serif;
+    --sans:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--ink); min-height:100dvh;
+    font-family:var(--serif); font-size:18px; line-height:1.5;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  }
+  h1,h2,h3{font-family:var(--serif); font-weight:500; letter-spacing:.2px; margin:0}
+  ::selection{background:rgba(122,92,52,.18)}
+  button{font-family:inherit; cursor:pointer; color:inherit}
+  .wrap{max-width:680px; margin:0 auto; padding:0 22px 140px}
+  .center{min-height:100dvh; display:flex; align-items:center; justify-content:center; padding:26px}
+
+  /* typographic helpers */
+  .label{font-family:var(--sans); font-size:10.5px; font-weight:600; letter-spacing:.22em; text-transform:uppercase; color:var(--muted)}
+  .muted{color:var(--muted)}
+  .ink2{color:var(--ink2)}
+  .serif-it{font-style:italic}
+  .num{font-variant-numeric:tabular-nums lining-nums; letter-spacing:.01em}
+  .rule{height:1px; background:var(--line); border:none; margin:0}
+  .hairline{border:1px solid var(--line)}
+
+  /* header */
+  header.top{position:sticky; top:0; z-index:30; background:rgba(244,239,230,.86); backdrop-filter:blur(10px); border-bottom:1px solid var(--line)}
+  .top .row{max-width:680px; margin:0 auto; padding:13px 22px; display:flex; align-items:center; gap:12px}
+  .wordmark{font-family:var(--serif); font-size:20px; letter-spacing:.3px; line-height:1; display:flex; align-items:baseline; gap:9px}
+  .wordmark .n{font-style:italic; color:var(--accent)}
+  .roomtag{font-family:var(--sans); font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:var(--muted); border:1px solid var(--line); border-radius:2px; padding:3px 7px}
+  .grow{flex:1}
+  .presence{display:flex; align-items:center}
+  .ava{width:25px; height:25px; border-radius:50%; display:grid; place-items:center; font-family:var(--sans);
+    font-size:10px; font-weight:700; color:#faf6ee; border:1.5px solid var(--bg); margin-left:-7px}
+  .ava.lit{box-shadow:0 0 0 1.5px var(--good)}
+  .icon-btn{background:none; border:1px solid var(--line); width:32px; height:32px; border-radius:3px; font-family:var(--serif); font-size:18px; line-height:1; color:var(--ink2)}
+  .icon-btn:hover{border-color:var(--accent); color:var(--accent)}
+
+  /* bottom nav — two rows: sub-tabs (top) + group tabs (bottom) */
+  nav.tabs{position:fixed; bottom:0; left:0; right:0; z-index:30; background:rgba(244,239,230,.96); backdrop-filter:blur(10px); border-top:1px solid var(--line); display:flex; flex-direction:column}
+  nav.tabs .subrow{max-width:680px; width:100%; margin:0 auto; display:flex; padding:0 8px}
+  nav.tabs .grouprow{max-width:680px; width:100%; margin:0 auto; display:flex; border-top:1px solid var(--line); padding:0 8px calc(2px + env(safe-area-inset-bottom))}
+  .tab{flex:1; background:none; border:none; padding:9px 1px 8px; position:relative; font-family:var(--sans);
+    font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:600; white-space:nowrap}
+  .tab .ind{position:absolute; top:-1px; left:50%; transform:translateX(-50%); width:0; height:2px; background:var(--accent); transition:width .18s ease}
+  .tab.active{color:var(--ink)}
+  .tab.active .ind{width:26px}
+  .tab .dot{position:absolute; top:7px; right:50%; margin-right:-15px; width:5px; height:5px; border-radius:50%; background:var(--accent)}
+  .gtab{flex:1; background:none; border:none; padding:10px 4px; font-family:var(--sans); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:700}
+  .gtab.on{color:var(--ink)}
+
+  /* generic */
+  .card{background:var(--paper); border:1px solid var(--line); border-radius:3px}
+  .pad{padding:20px}
+  .btn{font-family:var(--sans); font-size:13px; letter-spacing:.08em; text-transform:uppercase; font-weight:600;
+    background:var(--ink); color:var(--bg); border:1px solid var(--ink); padding:13px 20px; border-radius:3px; transition:.15s}
+  .btn:hover{background:var(--accent); border-color:var(--accent)}
+  .btn.outline{background:none; color:var(--ink); border:1px solid var(--line)}
+  .btn.outline:hover{background:none; border-color:var(--accent); color:var(--accent)}
+  .btn:disabled{opacity:.4; cursor:default}
+  .btn.sm{padding:9px 14px; font-size:11px}
+  input,textarea,select{width:100%; font-family:var(--serif); font-size:17px; background:var(--paper); border:1px solid var(--line);
+    color:var(--ink); padding:12px 14px; border-radius:3px; outline:none}
+  input:focus,textarea:focus{border-color:var(--accent)}
+  textarea{resize:vertical; min-height:74px; line-height:1.5}
+  label.fld{display:block; margin:18px 0 7px}
+  .swatches{display:flex; gap:10px; flex-wrap:wrap; margin-top:8px}
+  .sw{width:30px; height:30px; border-radius:50%; border:1px solid var(--line); position:relative}
+  .sw.sel:after{content:''; position:absolute; inset:-4px; border:1px solid var(--ink); border-radius:50%}
+  .scope-sel{width:auto; display:inline-block; font-family:var(--sans); font-size:12px; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--ink2); background:var(--paper); border:1px solid var(--line); border-radius:999px; padding:7px 16px; cursor:pointer}
+  .scope-sel:focus{border-color:var(--accent)}
+  /* stat cards */
+  .stat-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:6px 0}
+  .stat{border:1px solid var(--line); border-radius:3px; padding:14px 15px; background:var(--paper)}
+  .stat .k{font-family:var(--sans); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted)}
+  .stat .v{font-size:26px; line-height:1.1; margin-top:5px; font-variant-numeric:tabular-nums}
+  .stat .sub2{font-size:13px; color:var(--muted); margin-top:3px; font-style:italic}
+  .stat.wide{grid-column:1 / -1}
+  .bars .barrow{display:flex; align-items:center; gap:10px; padding:8px 2px; border-bottom:1px solid var(--line)}
+  .bars .barrow:last-child{border-bottom:none}
+  .bars .bl{width:118px; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .bars .bt{flex:1; height:8px; background:var(--paper2); border:1px solid var(--line); border-radius:999px; overflow:hidden}
+  .bars .bt > i{display:block; height:100%; background:var(--accent)}
+  .bars .bv{width:52px; text-align:right; font-variant-numeric:tabular-nums; font-size:13px; color:var(--ink2)}
+  /* pyramid */
+  .pyramid{display:flex; flex-direction:column; align-items:center; gap:6px; margin:16px 0 12px}
+  .pyr-row{display:flex; gap:6px; justify-content:center; width:100%}
+  .pyr-cell{flex:1 1 0; min-width:0; max-width:122px; min-height:48px; border:none; border-radius:6px; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; padding:4px 3px; position:relative;
+    color:#fff; font-family:var(--sans); box-shadow:inset 0 0 0 1px rgba(255,255,255,.18); transition:transform .08s, box-shadow .08s;
+    -webkit-user-select:none; user-select:none}
+  .pyr-cell.drag{cursor:grab; touch-action:none}
+  .pyr-cell.drag:active{cursor:grabbing}
+  .pyr-cell:hover{transform:translateY(-1px)}
+  .pyr-cell.top{box-shadow:inset 0 0 0 2px var(--gold), 0 3px 10px rgba(0,0,0,.18)}
+  .pyr-cell.sel{box-shadow:inset 0 0 0 2px var(--ink)}
+  .pyr-cell.dragging{opacity:.32}
+  .pyr-cell.dropbefore, .pyr-cell.dropafter{box-shadow:inset 0 0 0 1.5px rgba(0,0,0,.28); z-index:3}
+  .pyr-cell.dropbefore::after, .pyr-cell.dropafter::after{content:''; position:absolute; top:-3px; bottom:-3px; width:4px;
+    border-radius:2px; background:var(--ink); box-shadow:0 0 0 1.5px var(--bg), 0 1px 4px rgba(0,0,0,.4)}
+  .pyr-cell.dropbefore::after{left:-5px}
+  .pyr-cell.dropafter::after{right:-5px}
+  .pyr-cell .rk{font-size:10px; font-weight:700; opacity:.9; line-height:1; text-shadow:0 1px 2px rgba(0,0,0,.35)}
+  .pyr-cell .nm{font-size:9.5px; font-weight:600; line-height:1.12; text-align:center; max-width:100%; overflow:hidden;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; text-shadow:0 1px 2px rgba(0,0,0,.45); word-break:break-word}
+  .pyr-ghost{position:fixed; z-index:300; pointer-events:none; left:0; top:0; transform:translate(-50%,-150%);
+    background:var(--ink); color:var(--bg); padding:6px 11px; border-radius:5px; font-family:var(--sans); font-size:12px; font-weight:700;
+    box-shadow:0 6px 18px rgba(0,0,0,.32); white-space:nowrap; max-width:200px; overflow:hidden; text-overflow:ellipsis}
+  .pyr-drophint{text-align:center; font-family:var(--sans); font-size:12px; color:var(--accent); min-height:16px; margin:2px 0 0}
+
+  /* section heading */
+  .head{display:flex; align-items:baseline; gap:14px; margin:30px 2px 16px}
+  .head h2{font-size:25px; letter-spacing:.3px}
+  .head .line{flex:1; height:1px; background:var(--line); position:relative; top:-5px}
+  .head .meta{font-family:var(--sans); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted)}
+  .sub{font-size:25px}
+
+  /* battle */
+  .progress{display:flex; align-items:center; gap:14px; margin:18px 2px 0}
+  .progress .label{white-space:nowrap}
+  .bar{flex:1; height:1px; background:var(--line); position:relative}
+  .bar > i{position:absolute; left:0; top:-0.5px; height:2px; background:var(--accent)}
+  .ask{text-align:center; margin:34px 0 6px; font-size:30px; letter-spacing:.4px}
+  .ask-sub{text-align:center; font-family:var(--sans); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin:0 0 26px}
+  .versus{display:grid; grid-template-columns:1fr; gap:0}
+  .vs-rule{display:flex; align-items:center; gap:16px; margin:16px 4px}
+  .vs-rule .l{flex:1; height:1px; background:var(--line)}
+  .vs-rule .w{font-style:italic; color:var(--muted); font-size:17px}
+  .song{position:relative; text-align:left; width:100%; background:var(--paper); border:1px solid var(--line); border-radius:3px;
+    padding:22px 22px 22px 26px; transition:border-color .15s, background .15s; display:block}
+  .song:before{content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--c)}
+  .song:hover{border-color:var(--accent); background:var(--paper2)}
+  .song .album{font-family:var(--sans); font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:var(--muted)}
+  .song .ttl{font-size:27px; line-height:1.12; margin-top:7px; letter-spacing:.2px}
+  .song .key{position:absolute; right:16px; bottom:16px; font-family:var(--sans); font-size:10px; letter-spacing:.1em; color:var(--faint); border:1px solid var(--line); border-radius:2px; padding:1px 6px}
+  .song.chosen{border-color:var(--accent)}
+  .song .picked{position:absolute; right:16px; top:16px}
+  .actions-row{display:flex; justify-content:center; gap:12px; margin-top:24px}
+
+  /* list rows */
+  .list{border-top:1px solid var(--line)}
+  .row{display:flex; align-items:center; gap:14px; padding:13px 4px; border-bottom:1px solid var(--line); position:relative}
+  .row .rk{font-size:17px; color:var(--muted); width:30px; text-align:right; font-variant-numeric:tabular-nums}
+  .row .rk.top{color:var(--gold)}
+  .row .tick{width:3px; align-self:stretch; background:var(--c); border-radius:2px}
+  .row .body{flex:1; min-width:0}
+  .row .t{font-size:19px; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .row .s{font-family:var(--sans); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-top:2px}
+  .row .sc{font-variant-numeric:tabular-nums; color:var(--ink2); font-size:16px}
+
+  /* segmented */
+  .seg{display:flex; gap:0; border:1px solid var(--line); border-radius:3px; overflow:hidden; margin:8px 0 6px}
+  .seg button{flex:1; background:none; border:none; border-right:1px solid var(--line); padding:10px 6px; font-family:var(--sans);
+    font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:600}
+  .seg button:last-child{border-right:none}
+  .seg button.on{background:var(--ink); color:var(--bg)}
+
+  .feed .ev{padding:11px 2px; border-bottom:1px solid var(--line); font-size:17px}
+  .feed .ev:last-child{border-bottom:none}
+  .feed .who{font-style:italic}
+
+  /* clashes */
+  .clash{border:1px solid var(--line); border-radius:3px; padding:16px 18px; margin-bottom:12px; background:var(--paper)}
+  .clash .top{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px}
+  .clash .pairname{font-style:italic; color:var(--muted); font-size:15px}
+  .clash .cols{display:flex; gap:16px}
+  .clash .col{flex:1; min-width:0}
+  .clash .col.r{text-align:right}
+  .clash .nm{font-family:var(--sans); font-size:10px; letter-spacing:.12em; text-transform:uppercase; margin-bottom:3px}
+  .clash .pk{font-size:19px; line-height:1.15}
+  .badge{font-family:var(--sans); font-size:9px; letter-spacing:.14em; text-transform:uppercase; font-weight:700; color:var(--accent); border:1px solid var(--accent2); border-radius:2px; padding:2px 7px}
+
+  /* duel */
+  .stage{border:1px solid var(--line); border-radius:3px; background:var(--paper); padding:26px 22px; text-align:center}
+  .stage .kicker{margin-bottom:10px}
+  .stage h2{font-size:28px; margin-bottom:6px}
+  .duel-people{display:flex; align-items:center; justify-content:center; gap:10px; margin:18px 0}
+  .person{display:flex; align-items:center; gap:8px}
+  .lyric-card{border:1px solid var(--line); border-radius:3px; padding:18px; text-align:left; background:var(--paper2); width:100%}
+  .lyric-card .for{margin-bottom:8px}
+  .lyric-card .ly{font-size:21px; line-height:1.35; font-style:italic; white-space:pre-line}
+  .lyric-card:hover{border-color:var(--accent)}
+  .lyric-card.sel{border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent)}
+  .lyric-list{max-height:44vh; overflow-y:auto; border:1px solid var(--line); border-radius:3px; background:var(--paper2)}
+  .lyric-line{display:block; width:100%; text-align:left; background:none; border:none; border-bottom:1px solid var(--line);
+    padding:12px 15px; font-family:var(--serif); font-size:17px; font-style:italic; color:var(--ink); line-height:1.4}
+  .lyric-line:last-child{border-bottom:none}
+  .lyric-line:hover{background:rgba(122,92,52,.08); color:var(--accent)}
+  .lyric-line:active{background:rgba(122,92,52,.16)}
+  .lyric-line.sel{background:rgba(122,92,52,.13); color:var(--accent); box-shadow:inset 3px 0 0 var(--accent)}
+  .lyric-line .pick-n{float:right; font-style:normal; font-family:var(--sans); font-size:11px; font-weight:700; color:var(--accent)}
+  .wait{font-family:var(--sans); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-top:14px}
+  .winner-song{font-size:34px; line-height:1.1; margin:6px 0}
+  .quote{font-style:italic; font-size:21px; line-height:1.4; color:var(--ink2); max-width:30ch; margin:14px auto; white-space:pre-line}
+
+  .empty{text-align:center; padding:64px 20px}
+  .empty .rule{width:40px; margin:0 auto 18px}
+  .empty h2{font-size:26px; margin-bottom:8px}
+  .empty p{color:var(--muted); margin:0 auto; max-width:34ch}
+
+  .notice{border:1px solid var(--line); border-left:2px solid var(--accent); background:var(--paper2); border-radius:3px; padding:13px 16px; font-size:15px; line-height:1.45}
+  code.mono{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; background:var(--panel); padding:2px 6px; border-radius:3px}
+
+  .sheet-bg{position:fixed; inset:0; background:rgba(27,24,19,.4); z-index:40; display:flex; align-items:flex-end; justify-content:center}
+  .sheet{background:var(--paper); border:1px solid var(--line); border-radius:6px 6px 0 0; width:100%; max-width:680px; padding:22px 22px calc(26px + env(safe-area-inset-bottom))}
+  @media(min-width:560px){ .sheet-bg{align-items:center} .sheet{border-radius:6px} }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script type="module">
+import { h, render } from 'https://cdn.jsdelivr.net/npm/preact@10.20.2/+esm';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'https://cdn.jsdelivr.net/npm/preact@10.20.2/hooks/+esm';
+import htm from 'https://cdn.jsdelivr.net/npm/htm@3.1.1/+esm';
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/+esm';
+const html = htm.bind(h);
+
+/* ============================================================================
+   1. CONFIG  — your Supabase project. (Anon key is safe in client code; access
+   is governed by Row Level Security.)
+============================================================================ */
+const SUPABASE_URL  = "https://eakczywxvhsbysvnqdlg.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVha2N6eXd4dmhzYnlzdm5xZGxnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMjg1NjAsImV4cCI6MjA5NjYwNDU2MH0.6if360IizztBkCSaSxFFZx8WyVwPcVo_cX5qNUStjdk";
+// Password to delete profiles (a soft gate for your friend group — change it).
+const ADMIN_PASSWORD = "taylor13";
+// Build tag — shown in the ≡ menu so you can confirm a fresh deploy is live.
+const BUILD = "drag-v4";
+
+/* ============================================================================
+   2. THE CATALOG — every distinct Taylor Swift song (re-recordings collapsed
+   into one entry; vault tracks, bonus tracks, singles & notable collabs kept).
+============================================================================ */
+const ALBUMS = [
+  { key:"debut", name:"Taylor Swift", year:2006, color:"#3fae9b", songs:[
+    "Tim McGraw","Picture to Burn","Teardrops on My Guitar","A Place in This World","Cold as You",
+    "The Outside","Tied Together with a Smile","Stay Beautiful","Should've Said No","Mary's Song (Oh My My My)",
+    "Our Song","I'm Only Me When I'm with You","Invisible","A Perfectly Good Heart" ]},
+  { key:"fearless", name:"Fearless", year:2008, color:"#c8a13c", songs:[
+    "Fearless","Fifteen","Love Story","Hey Stephen","White Horse","You Belong with Me","Breathe",
+    "Tell Me Why","You're Not Sorry","The Way I Loved You","Forever & Always","The Best Day","Change",
+    "Jump Then Fall","Untouchable","Come In with the Rain","Superstar","The Other Side of the Door",
+    "Mr. Perfectly Fine","We Were Happy","That's When","Don't You","Bye Bye Baby","You All Over Me" ]},
+  { key:"speaknow", name:"Speak Now", year:2010, color:"#7d54a3", songs:[
+    "Mine","Sparks Fly","Back to December","Speak Now","Dear John","Mean","The Story of Us","Never Grow Up",
+    "Enchanted","Better than Revenge","Innocent","Haunted","Last Kiss","Long Live","Ours","Superman",
+    "If This Was a Movie","I Can See You","When Emma Falls in Love","Castles Crumbling","Foolish One",
+    "Timeless","Electric Touch" ]},
+  { key:"red", name:"Red", year:2012, color:"#a3262f", songs:[
+    "State of Grace","Red","Treacherous","I Knew You Were Trouble","All Too Well","22","I Almost Do",
+    "We Are Never Ever Getting Back Together","Stay Stay Stay","The Last Time","Holy Ground","Sad Beautiful Tragic",
+    "The Lucky One","Everything Has Changed","Starlight","Begin Again","The Moment I Knew","Come Back... Be Here",
+    "Girl at Home","Better Man","Nothing New","Babe","Message in a Bottle","I Bet You Think About Me",
+    "Forever Winter","Run","The Very First Night","All Too Well (10 Minute Version)" ]},
+  { key:"1989", name:"1989", year:2014, color:"#74b3d4", songs:[
+    "Welcome to New York","Blank Space","Style","Out of the Woods","All You Had to Do Was Stay","Shake It Off",
+    "I Wish You Would","Bad Blood","Wildest Dreams","How You Get the Girl","This Love","I Know Places","Clean",
+    "Wonderland","You Are in Love","New Romantics","Slut!","Say Don't Go","Now That We Don't Talk",
+    "Suburban Legends","Is It Over Now?" ]},
+  { key:"reputation", name:"reputation", year:2017, color:"#5c5f66", songs:[
+    "...Ready for It?","End Game","I Did Something Bad","Don't Blame Me","Delicate","Look What You Made Me Do",
+    "So It Goes...","Gorgeous","Getaway Car","King of My Heart","Dancing with Our Hands Tied","Dress",
+    "This Is Why We Can't Have Nice Things","Call It What You Want","New Year's Day" ]},
+  { key:"lover", name:"Lover", year:2019, color:"#df8fbf", songs:[
+    "I Forgot That You Existed","Cruel Summer","Lover","The Man","The Archer","I Think He Knows",
+    "Miss Americana & the Heartbreak Prince","Paper Rings","Cornelia Street","Death by a Thousand Cuts",
+    "London Boy","Soon You'll Get Better","False God","You Need to Calm Down","Afterglow","ME!",
+    "It's Nice to Have a Friend","Daylight" ]},
+  { key:"folklore", name:"folklore", year:2020, color:"#8e8b86", songs:[
+    "the 1","cardigan","the last great american dynasty","exile","my tears ricochet","mirrorball","seven",
+    "august","this is me trying","illicit affairs","invisible string","mad woman","epiphany","betty","peace",
+    "hoax","the lakes" ]},
+  { key:"evermore", name:"evermore", year:2020, color:"#a06c45", songs:[
+    "willow","champagne problems","gold rush","'tis the damn season","tolerate it","no body, no crime","happiness",
+    "dorothea","coney island","ivy","cowboy like me","long story short","marjorie","closure","evermore",
+    "right where you left me","it's time to go" ]},
+  { key:"midnights", name:"Midnights", year:2022, color:"#39477e", songs:[
+    "Lavender Haze","Maroon","Anti-Hero","Snow on the Beach","You're on Your Own, Kid","Midnight Rain",
+    "Question...?","Vigilante Shit","Bejeweled","Labyrinth","Karma","Sweet Nothing","Mastermind","The Great War",
+    "Bigger Than the Whole Sky","Paris","High Infidelity","Glitch","Would've, Could've, Should've","Dear Reader",
+    "Hits Different","You're Losing Me" ]},
+  { key:"ttpd", name:"The Tortured Poets Department", year:2024, color:"#897f6e", songs:[
+    "Fortnight","The Tortured Poets Department","My Boy Only Breaks His Favorite Toys","Down Bad","So Long, London",
+    "But Daddy I Love Him","Fresh Out the Slammer","Florida!!!","Guilty as Sin?","Who's Afraid of Little Old Me?",
+    "I Can Fix Him (No Really I Can)","loml","I Can Do It with a Broken Heart","The Smallest Man Who Ever Lived",
+    "The Alchemy","Clara Bow","The Black Dog","imgonnagetyouback","The Albatross","Chloe or Sam or Sophia or Marcus",
+    "How Did It End?","So High School","I Hate It Here","thanK you aIMee","I Look in People's Windows","The Prophecy",
+    "Cassandra","Peter","The Bolter","Robin","The Manuscript" ]},
+  { key:"showgirl", name:"The Life of a Showgirl", year:2025, color:"#d98327", songs:[
+    "The Fate of Ophelia","Elizabeth Taylor","Opalite","Father Figure","Eldest Daughter","Ruin the Friendship",
+    "Actually Romantic","Wish List","Wood","Cancelled!","Honey","The Life of a Showgirl" ]},
+];
+const EXTRAS = [
+  { type:"single", color:"#9b86b8", year:2010, title:"Today Was a Fairytale" },
+  { type:"single", color:"#9b86b8", year:2012, title:"Ronan" },
+  { type:"single", color:"#9b86b8", year:2020, title:"Only the Young" },
+  { type:"single", color:"#9b86b8", year:2023, title:"All of the Girls You Loved Before" },
+  { type:"soundtrack", color:"#7f9c8a", year:2009, title:"Crazier" },
+  { type:"soundtrack", color:"#7f9c8a", year:2012, title:"Safe & Sound" },
+  { type:"soundtrack", color:"#7f9c8a", year:2012, title:"Eyes Open" },
+  { type:"soundtrack", color:"#7f9c8a", year:2013, title:"Sweeter than Fiction" },
+  { type:"soundtrack", color:"#7f9c8a", year:2019, title:"Beautiful Ghosts" },
+  { type:"soundtrack", color:"#7f9c8a", year:2022, title:"Carolina" },
+  { type:"holiday", color:"#5b7b62", year:2007, title:"Christmas Must Be Something More" },
+  { type:"holiday", color:"#5b7b62", year:2007, title:"Christmases When You Were Mine" },
+  { type:"holiday", color:"#5b7b62", year:2019, title:"Christmas Tree Farm" },
+  { type:"collab", color:"#b08456", year:2009, title:"Two Is Better Than One" },
+  { type:"collab", color:"#b08456", year:2012, title:"Both of Us" },
+  { type:"collab", color:"#b08456", year:2013, title:"Highway Don't Care" },
+  { type:"collab", color:"#b08456", year:2016, title:"I Don't Wanna Live Forever" },
+  { type:"collab", color:"#b08456", year:2021, title:"Renegade" },
+  { type:"collab", color:"#b08456", year:2022, title:"The Joker and the Queen" },
+  { type:"collab", color:"#b08456", year:2024, title:"Us" },
+];
+const EXTRA_LABEL = { single:"Single", soundtrack:"Soundtrack", holiday:"Holiday", collab:"Collaboration" };
+
+function slug(s){ return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''); }
+const SONGS = [];
+for (const a of ALBUMS) for (const t of a.songs)
+  SONGS.push({ id:slug(t), title:t, album:a.name, albumKey:a.key, year:a.year, color:a.color });
+for (const e of EXTRAS)
+  SONGS.push({ id:slug(e.title), title:e.title, album:EXTRA_LABEL[e.type], albumKey:e.type, year:e.year, color:e.color });
+const SONG_BY_ID = {};
+for (const s of SONGS) SONG_BY_ID[s.id] = s;
+const SONG_LIST = Object.values(SONG_BY_ID);
+const TOTAL = SONG_LIST.length;
+function fmtSong(id){ const s=SONG_BY_ID[id]; return s ? s.title : id; }
+function colorOf(id){ const s=SONG_BY_ID[id]; return s ? s.color : '#999'; }
+function albumOf(id){ const s=SONG_BY_ID[id]; return s ? s.albumKey : null; }
+function albumName(id){ const s=SONG_BY_ID[id]; return s ? s.album : ''; }
+// ordered groups (albums chronologically, then singles/soundtrack/holiday/collab) for album-by-album ranking
+const ALBUM_GROUPS = [];
+for (const a of ALBUMS) ALBUM_GROUPS.push({ key:a.key, name:a.name, songs:a.songs.map(slug) });
+for (const ty of ['single','soundtrack','holiday','collab']){
+  const ids = EXTRAS.filter(e=>e.type===ty).map(e=>slug(e.title));
+  if (ids.length) ALBUM_GROUPS.push({ key:ty, name:EXTRA_LABEL[ty], songs:ids });
+}
+
+/* ============================================================================
+   3. ELO ENGINE
+============================================================================ */
+const BASE = 1000, K = 32;
+// drag-drop "anchor": a vote whose loser is "__anchor__:<rating>" — sets the song's rating directly.
+// The rating rides in the always-present `loser` text column so it works even if `decided_ms` was never migrated.
+const ANCHOR='__anchor__';
+function isAnchor(loser){ return typeof loser==='string' && loser.indexOf(ANCHOR)===0; }
+function anchorRating(v){ const a=Number(String(v.loser).split(':')[1]); return isNaN(a)? Number(v.decided_ms) : a; }
+function computeStats(votes){
+  const players = {};
+  const sorted = [...votes].sort((a,b)=> new Date(a.created_at) - new Date(b.created_at));
+  for (const v of sorted){
+    const anchor = isAnchor(v.loser);        // drag-drop: set this song's rating directly
+    if (anchor ? !SONG_BY_ID[v.winner] : (!SONG_BY_ID[v.winner] || !SONG_BY_ID[v.loser])) continue;
+    let p = players[v.player_id];
+    if (!p){ p = players[v.player_id] = { id:v.player_id, name:v.player_name, color:v.player_color||"#7a5c34",
+      ratings:{}, counts:{}, n:0, directed:new Set() }; }
+    p.name = v.player_name; if (v.player_color) p.color = v.player_color;
+    if (anchor){ const rt=anchorRating(v); if(!isNaN(rt)) p.ratings[v.winner]=rt; if(!p.counts[v.winner]) p.counts[v.winner]=1; continue; }
+    const rw = p.ratings[v.winner] ?? BASE, rl = p.ratings[v.loser] ?? BASE;
+    const expW = 1/(1+Math.pow(10,(rl-rw)/400));
+    p.ratings[v.winner] = rw + K*(1-expW);
+    p.ratings[v.loser]  = rl + K*(0-(1-expW));
+    p.counts[v.winner] = (p.counts[v.winner]||0)+1;
+    p.counts[v.loser]  = (p.counts[v.loser]||0)+1;
+    p.directed.add(v.winner+'>'+v.loser);
+    p.n++;
+  }
+  return players;
+}
+function leaderboard(p){
+  if (!p) return [];
+  return Object.keys(p.ratings).filter(id=> SONG_BY_ID[id])
+    .map(id=>({ id, rating:p.ratings[id], count:p.counts[id]||0 }))
+    .sort((a,b)=> b.rating - a.rating);
+}
+function groupConsensus(players){
+  const agg = {};
+  for (const pid in players){ const p = players[pid];
+    for (const id in p.ratings){ if ((p.counts[id]||0) < 1) continue;
+      (agg[id] ||= {sum:0,n:0}); agg[id].sum += p.ratings[id]; agg[id].n++; } }
+  return Object.keys(agg).map(id=>({ id, rating:agg[id].sum/agg[id].n, raters:agg[id].n }))
+    .sort((a,b)=> b.rating - a.rating);
+}
+const PREF_TH = 24;
+function derivedClashes(me, other){
+  if (!me || !other) return [];
+  const shared = Object.keys(me.ratings).filter(id=> id in other.ratings && (me.counts[id]||0)>0 && (other.counts[id]||0)>0 && SONG_BY_ID[id]);
+  const out = [];
+  for (let i=0;i<shared.length;i++) for (let j=i+1;j<shared.length;j++){
+    const A=shared[i], B=shared[j];
+    const mine = me.ratings[A]-me.ratings[B], theirs = other.ratings[A]-other.ratings[B];
+    if (Math.sign(mine)===0 || Math.sign(theirs)===0 || Math.sign(mine)===Math.sign(theirs)) continue;
+    const mg=Math.abs(mine), tg=Math.abs(theirs);
+    if (mg < PREF_TH || tg < PREF_TH) continue;
+    out.push({ a:A, b:B, myHi: mine>0?A:B, theirHi: theirs>0?A:B, strength: Math.min(mg,tg) });
+  }
+  return out.sort((x,y)=> y.strength - x.strength);
+}
+function derivedAgreements(me, other){     // pairs you BOTH rank the same way
+  if (!me || !other) return [];
+  const shared = Object.keys(me.ratings).filter(id=> id in other.ratings && (me.counts[id]||0)>0 && (other.counts[id]||0)>0 && SONG_BY_ID[id]);
+  const out = [];
+  for (let i=0;i<shared.length;i++) for (let j=i+1;j<shared.length;j++){
+    const A=shared[i], B=shared[j];
+    const mine = me.ratings[A]-me.ratings[B], theirs = other.ratings[A]-other.ratings[B];
+    if (Math.sign(mine)===0 || Math.sign(theirs)===0 || Math.sign(mine)!==Math.sign(theirs)) continue;
+    const mg=Math.abs(mine), tg=Math.abs(theirs);
+    if (mg < PREF_TH || tg < PREF_TH) continue;
+    out.push({ a:A, b:B, hi: mine>0?A:B, lo: mine>0?B:A, strength: Math.min(mg,tg) });
+  }
+  return out.sort((x,y)=> y.strength - x.strength);
+}
+function directClashes(me, other){
+  if (!me || !other) return [];
+  const seen=new Set(), res=[];
+  for (const d of me.directed){ const [w,l]=d.split('>');
+    if (other.directed.has(l+'>'+w)){ const k=[w,l].sort().join('|'); if(seen.has(k))continue; seen.add(k); res.push({ a:w, b:l, myHi:w, theirHi:l }); } }
+  return res;
+}
+
+/* matchup picker for solo battle.
+   Phase 1 — album by album: rank songs *within* each album first (similar songs,
+   more fun to compare). An album is "ranked" once each of its songs has had
+   INTRA_TARGET distinct within-album battles, then we move to the next album.
+   Phase 2 — finals: once every album is ranked, compare the best across albums. */
+const INTRA_TARGET = 5;
+function pairKey(a,b){ return [a,b].sort().join('|'); }
+function order(a,b){ return Math.random()<0.5 ? [a,b] : [b,a]; }
+function judgedSet(me){ return new Set(me ? [...me.directed].map(d=>{const[w,l]=d.split('>');return pairKey(w,l);}) : []); }
+// pick an informative partner for A from a list of candidate ids
+function bestPartner(A, ids, me, judged, lastKey){
+  const ratingOf = id => (me && me.ratings[id]!=null) ? me.ratings[id] : BASE;
+  const countOf  = id => (me && me.counts[id]) || 0;
+  const rA = ratingOf(A);
+  let cands = ids.filter(id=> id!==A && pairKey(A,id)!==lastKey);
+  if (!cands.length) cands = ids.filter(id=> id!==A);
+  if (!cands.length) return null;
+  cands.sort((x,y)=>{
+    const jx=judged.has(pairKey(A,x))?1e6:0, jy=judged.has(pairKey(A,y))?1e6:0;
+    return (jx + Math.abs(ratingOf(x)-rA) + countOf(x)*5) - (jy + Math.abs(ratingOf(y)-rA) + countOf(y)*5);
+  });
+  const top = cands.slice(0, Math.min(6, cands.length));
+  return top[(Math.random()*top.length)|0];
+}
+function pickMatchup(me, lastKey, scope){
+  const countOf = id => (me && me.counts[id]) || 0;
+  const ratingOf = id => (me && me.ratings[id]!=null) ? me.ratings[id] : BASE;
+  const judged = judgedSet(me);
+
+  // Single-album focus ("mini round"): only battles within that one album
+  if (scope && scope!=='all'){
+    const g = ALBUM_GROUPS.find(x=> x.key===scope);
+    if (g && g.songs.length>1){
+      const pool=[...g.songs].sort((a,b)=> countOf(a)-countOf(b) || Math.random()-0.5);
+      const minC=countOf(pool[0]); const leasts=g.songs.filter(id=> countOf(id)<=minC+1);
+      const A=leasts[(Math.random()*leasts.length)|0];
+      const B=bestPartner(A, g.songs, me, judged, lastKey);
+      if (B) return order(A,B);
+    }
+  }
+
+  // Phase 1: earliest group that still has under-ranked songs
+  for (const g of ALBUM_GROUPS){
+    const target = Math.min(INTRA_TARGET, g.songs.length-1);
+    const under = g.songs.filter(id=> countOf(id) < target);
+    if (!under.length) continue;                 // this album is ranked — move on
+    under.sort((a,b)=> countOf(a)-countOf(b) || Math.random()-0.5);
+    const minC = countOf(under[0]);
+    const leasts = under.filter(id=> countOf(id) <= minC+1);
+    const A = leasts[(Math.random()*leasts.length)|0];
+    const B = bestPartner(A, g.songs, me, judged, lastKey);
+    if (B) return order(A,B);
+  }
+
+  // Phase 2: every album ranked — finals across albums, favouring the best
+  const ranked = SONG_LIST.map(s=>s.id).sort((a,b)=> ratingOf(b)-ratingOf(a));
+  const poolA = ranked.slice(0, Math.max(24, Math.ceil(TOTAL*0.4)));
+  poolA.sort((a,b)=> countOf(a)-countOf(b) || Math.random()-0.5);
+  const A = poolA[(Math.random()*Math.min(10,poolA.length))|0];
+  const crossIds = SONG_LIST.filter(s=> s.albumKey!==albumOf(A)).map(s=>s.id);
+  const B = bestPartner(A, crossIds, me, judged, lastKey) || ranked.find(id=>id!==A);
+  return order(A,B);
+}
+function freshPair(used){
+  const u=new Set(used);
+  for(let t=0;t<300;t++){ const a=SONG_LIST[(Math.random()*TOTAL)|0], b=SONG_LIST[(Math.random()*TOTAL)|0];
+    if(a.id===b.id) continue; if(u.has(pairKey(a.id,b.id))) continue; return order(a.id,b.id); }
+  const a=SONG_LIST[(Math.random()*TOTAL)|0]; let b; do{ b=SONG_LIST[(Math.random()*TOTAL)|0]; }while(b.id===a.id); return [a.id,b.id];
+}
+
+/* ============================================================================
+   ANALYTICS & SEASONS — computed from a player's raw vote log
+============================================================================ */
+function groupName(key){ const g=ALBUM_GROUPS.find(x=>x.key===key); return g? g.name : key; }
+function fmtMs(ms){ if(ms==null||isNaN(ms)) return '—'; const s=ms/1000;
+  if(s<1) return Math.round(ms)+'ms';
+  if(s<60) return (s<10? s.toFixed(1): Math.round(s))+'s';
+  const m=Math.floor(s/60), r=Math.round(s%60); return m+'m '+(r<10?'0':'')+r+'s'; }
+function relTime(iso){ try{ const d=(Date.now()-new Date(iso).getTime())/86400000;
+  if(d<1) return 'today'; if(d<2) return 'yesterday'; if(d<31) return Math.floor(d)+'d ago';
+  return Math.floor(d/30)+'mo ago'; }catch{ return ''; } }
+function votesForSeason(votes, playerId, season){
+  return votes.filter(v=> v.player_id===playerId && (v.season||'current')===season && SONG_BY_ID[v.winner] && SONG_BY_ID[v.loser]); }
+function seasonsOf(votes, playerId){
+  const m={}; for(const v of votes){ if(v.player_id!==playerId) continue; const s=v.season||'current';
+    if(!m[s]) m[s]={season:s,count:0,first:v.created_at,last:v.created_at}; m[s].count++;
+    if(v.created_at<m[s].first) m[s].first=v.created_at; if(v.created_at>m[s].last) m[s].last=v.created_at; }
+  return Object.values(m).sort((a,b)=> (b.last||'').localeCompare(a.last||'')); }
+function filterByAlbum(vs, albumKey){
+  if(!albumKey||albumKey==='all') return vs;
+  return vs.filter(v=> albumOf(v.winner)===albumKey && albumOf(v.loser)===albumKey); }
+function computeAnalytics(vs){
+  vs=vs.filter(x=> !isAnchor(x.loser));   // drag-drop anchors aren't timed decisions
+  const n=vs.length;
+  const timed=vs.filter(x=> typeof x.decided_ms==='number' && x.decided_ms>0);
+  const times=timed.map(x=>x.decided_ms).sort((a,b)=>a-b);
+  const sum=times.reduce((a,b)=>a+b,0);
+  const avg=times.length? sum/times.length:0;
+  const median=times.length? times[Math.floor(times.length/2)]:0;
+  const longest=timed.reduce((m,x)=> !m||x.decided_ms>m.decided_ms?x:m, null);
+  const fastest=timed.reduce((m,x)=> !m||x.decided_ms<m.decided_ms?x:m, null);
+  const agonized=[...timed].sort((a,b)=>b.decided_ms-a.decided_ms).slice(0,6);
+  const alb={};
+  for(const x of vs){ const aw=albumOf(x.winner), al=albumOf(x.loser); if(aw!==al) continue;
+    if(!alb[aw]) alb[aw]={key:aw,n:0,tSum:0,tN:0}; alb[aw].n++;
+    if(typeof x.decided_ms==='number'&&x.decided_ms>0){ alb[aw].tSum+=x.decided_ms; alb[aw].tN++; } }
+  const albums=Object.values(alb).map(a=>({key:a.key,name:groupName(a.key),n:a.n,avg:a.tN?a.tSum/a.tN:0,tN:a.tN}))
+    .sort((x,y)=> y.avg-x.avg);
+  const crossN=vs.filter(x=> albumOf(x.winner)!==albumOf(x.loser)).length;
+  return { n, timedN:timed.length, totalTime:sum, avg, median, longest, fastest, agonized, albums, crossN };
+}
+
+/* ============================================================================
+   4. DUEL STATE MACHINE (pure reducer; host runs it, broadcasts state)
+============================================================================ */
+/* Supports N players. Everyone moves through one shared matchup sequence at
+   their own pace. A disagreement on a matchup queues a pairwise "bout". A
+   player can be in at most one bout; while their clash-partner is busy with
+   someone else, they keep choosing, and the clash waits its turn (next in line). */
+function baseDuel(){ return {
+  host:null, phase:'lobby',          // 'lobby' | 'running' | 'done'
+  players:[], names:{}, colors:{}, seed:1, scope:'all',  // 'all' or an albumKey (mini round)
+  seq:[],                            // shared matchup sequence: [ [a,b], ... ]
+  cursor:{},                         // id -> index of the matchup they're choosing
+  picks:{},                          // matchupIndex -> { id -> songId }
+  resolved:{},                       // "i|idA|idB" -> true (settled, won't re-duel)
+  duels:{},                          // duelId -> bout
+  busy:{},                           // id -> duelId (the bout they're locked into)
+  queue:[],                          // [{players:[x,y], matchup:i, pair:[a,b]}]
+  nextId:1, settled:0
+}; }
+function bothIn(obj, players){ return players.length>=2 && players.every(p=> obj[p]!=null && obj[p]!==''); }
+function mulberry(seed){ let a=seed>>>0; return ()=>{ a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function scopedPool(scope){
+  if(scope && scope!=='all'){ const g=ALBUM_GROUPS.find(x=>x.key===scope); if(g && g.songs.length>1) return g.songs.slice(); }
+  return SONG_LIST.map(s=>s.id);
+}
+function ensureSeq(s, idx){
+  const pool=scopedPool(s.scope), P=pool.length;
+  while(s.seq.length<=idx){
+    const rng=mulberry(((s.seed||1)+s.seq.length*2654435761)>>>0);
+    const used=new Set(s.seq.map(p=>pairKey(p[0],p[1])));
+    let pair=null;
+    for(let k=0;k<600;k++){ const a=pool[(rng()*P)|0], b=pool[(rng()*P)|0];
+      if(a===b||used.has(pairKey(a,b))) continue; pair=[a,b]; break; }
+    s.seq.push(pair || [pool[0], pool[1%P]]);
+  }
+}
+function rkey(i,x,y){ return i+'|'+[x,y].sort().join('|'); }
+function activate(s){            // start any queued clash whose two players are both free
+  const rem=[];
+  for(const c of s.queue){ const [x,y]=c.players;
+    if(!s.busy[x] && !s.busy[y]){
+      const id='d'+(s.nextId++);
+      s.duels[id]={ id, players:[x,y], matchup:c.matchup, pair:c.pair,
+        champions:{ [x]:s.picks[c.matchup][x], [y]:s.picks[c.matchup][y] },
+        phase:'conflict', round:1, lyrics:{}, lyricVotes:{}, tpicks:{}, tmiss:0,
+        winner:null, winLyric:null, mode:null, continued:{} };
+      s.busy[x]=id; s.busy[y]=id;
+    } else rem.push(c);
+  }
+  s.queue=rem;
+}
+function duelReduce(s, a){
+  s = JSON.parse(JSON.stringify(s));
+  if (a.by){ if(a.name) s.names[a.by]=a.name; if(a.color) s.colors[a.by]=a.color; }
+  let effect=null;
+  const d = a.by && s.busy[a.by] ? s.duels[s.busy[a.by]] : null;   // bout this player is in
+  const resolveBout=(dd, winnerSong, mode, winLyric)=>{
+    dd.phase='resolved'; dd.winner=winnerSong; dd.mode=mode; dd.winLyric=winLyric||null;
+    s.resolved[rkey(dd.matchup, dd.players[0], dd.players[1])]=true; s.settled++;
+    if (mode!=='draw') effect={ type:'record', row:{
+      song_a:dd.pair[0], song_b:dd.pair[1], winner:winnerSong, winner_lyric:winLyric||null, mode, rounds:dd.round,
+      player_a: s.names[dd.players[0]]||'?', player_b: s.names[dd.players[1]]||'?' } };
+  };
+  switch(a.kind){
+    case 'hello': break;
+    case 'start':
+      Object.assign(s, baseDuel());
+      s.host=a.host; s.players=a.players; s.names={...s.names,...a.names}; s.colors={...s.colors,...a.colors};
+      s.seed=a.seed||1; s.scope=a.scope||'all'; s.phase='running'; s.players.forEach(p=> s.cursor[p]=0); ensureSeq(s,0); break;
+    case 'join':                                    // hop into a duel that's already running
+      if(s.phase!=='running') break;
+      if(!s.players.includes(a.by)){ s.players.push(a.by); s.cursor[a.by]=0; ensureSeq(s,0); } break;
+    case 'pick':{
+      if(s.phase!=='running' || s.busy[a.by]) break;
+      const m=a.matchup; if(m!==s.cursor[a.by]) break;          // ignore stale picks
+      (s.picks[m] ||= {})[a.by]=a.song;
+      s.cursor[a.by]=m+1; ensureSeq(s, s.cursor[a.by]);
+      for(const p of s.players){ if(p===a.by) continue;
+        const op=s.picks[m] && s.picks[m][p];
+        if(op==null || op===a.song) continue;                   // not answered, or agreement
+        const k=rkey(m,a.by,p);
+        if(s.resolved[k]) continue;
+        if(s.queue.some(c=> rkey(c.matchup,c.players[0],c.players[1])===k)) continue;
+        if(Object.values(s.duels).some(dd=> rkey(dd.matchup,dd.players[0],dd.players[1])===k)) continue;
+        s.queue.push({ players:[a.by,p], matchup:m, pair:s.seq[m] });
+      }
+      activate(s); break; }
+    case 'unpick':{                                   // "go back" — undo your most recent pick (if it isn't already in a clash)
+      if(s.phase!=='running' || s.busy[a.by]) break;
+      const cur=s.cursor[a.by]||0; if(cur<=0) break;
+      const m=cur-1;
+      if(Object.values(s.duels).some(d=> d.matchup===m && d.players.includes(a.by))) break;      // already in a bout on this matchup
+      if(s.players.some(p=> p!==a.by && s.resolved[rkey(m,a.by,p)])) break;                        // already settled
+      s.queue = s.queue.filter(c=> !(c.matchup===m && c.players.includes(a.by)));                  // drop still-queued clashes of mine here
+      if(s.picks[m]) delete s.picks[m][a.by];
+      s.cursor[a.by]=m; break; }
+    case 'mode':
+      if(!d || d.phase!=='conflict') break;
+      if(a.mode==='together'){ d.phase='together'; d.tpicks={}; d.tmiss=0; }
+      else { d.phase='lyric'; d.round=1; d.lyrics={}; } break;
+    case 'togetherpick':
+      if(!d || d.phase!=='together') break;
+      d.tpicks[a.by]=a.song;
+      if(bothIn(d.tpicks,d.players)){ const [p,q]=d.players;
+        if(d.tpicks[p]===d.tpicks[q]) resolveBout(d, d.tpicks[p],'together');
+        else { d.tpicks={}; d.tmiss++; } } break;
+    case 'lyric':
+      if(!d || d.phase!=='lyric') break;
+      d.lyrics[a.by]=a.text;
+      if(bothIn(d.lyrics,d.players)){ d.phase='lyricvote'; d.lyricVotes={}; } break;
+    case 'lyricvote':
+      if(!d || d.phase!=='lyricvote') break;
+      d.lyricVotes[a.by]=a.song;
+      if(bothIn(d.lyricVotes,d.players)){ const [p,q]=d.players;
+        if(d.lyricVotes[p]===d.lyricVotes[q]){ const w=d.lyricVotes[p];
+          const champ=d.players.find(x=> d.champions[x]===w); resolveBout(d, w,'lyric', d.lyrics[champ]); }
+        else { d.round++; d.lyrics={}; d.lyricVotes={}; d.phase='lyric'; } } break;
+    case 'draw':
+      if(d && ['conflict','together','lyric','lyricvote'].includes(d.phase)) resolveBout(d, null,'draw'); break;
+    case 'continue':
+      if(!d || d.phase!=='resolved') break;
+      d.continued[a.by]=true; delete s.busy[a.by];              // return to choosing
+      if(d.players.every(p=> d.continued[p])) delete s.duels[d.id];
+      activate(s); break;                                       // their next-in-line clash can start
+    case 'end': s.phase='done'; break;
+    case 'save': {                                  // park the in-progress duel, then clear the live session
+      const snapshot=JSON.parse(JSON.stringify(s));
+      effect={ type:'saveDuel', snapshot };
+      Object.assign(s, baseDuel()); break; }
+    case 'abort': Object.assign(s, baseDuel()); break;   // discard the live duel (settled clashes are kept separately)
+    case 'resume':                                  // load a parked duel; whoever resumes becomes host
+      s=JSON.parse(JSON.stringify(a.state)); s.host=a.host; if(!s.phase||s.phase==='lobby') s.phase='running'; break;
+  }
+  return { state:s, effect };
+}
+
+/* ============================================================================
+   5. STORAGE
+============================================================================ */
+const LS = { get(k,d){ try{ return JSON.parse(localStorage.getItem(k)) ?? d; }catch{ return d; } },
+  set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch{} }, del(k){ try{ localStorage.removeItem(k); }catch{} } };
+function cfg(){ const url=SUPABASE_URL||LS.get('ss_url',''), key=SUPABASE_ANON_KEY||LS.get('ss_key','');
+  return { url, key, ready:!!(url&&key) }; }
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'p'+Math.random().toString(36).slice(2)+Date.now());
+function initials(n){ return (n||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase(); }
+const COLORS = ["#7a5c34","#9a4a3f","#4f6f4a","#39477e","#7d54a3","#a06c45","#5c5f66","#c8a13c"];
+
+/* ============================================================================
+   6. APP
+============================================================================ */
+function App(){
+  const [conf,setConf]=useState(cfg());
+  const [me,setMe]=useState(LS.get('ss_me',null));
+  const [tab,setTab]=useState('battle');
+  const [votes,setVotes]=useState([]);
+  const [guesses,setGuesses]=useState([]);
+  const [duelWins,setDuelWins]=useState([]);
+  const [online,setOnline]=useState([]);
+  const [loaded,setLoaded]=useState(false);
+  const [menu,setMenu]=useState(false);
+  const supaRef=useRef(null);
+  const lastByGroup=useRef({games:'battle', analytics:'mine'});
+  const offline=!conf.ready;
+  useEffect(()=>{ const g=TAB_GROUP[tab]; if(g) lastByGroup.current[g]=tab; },[tab]);
+  const goGroup=(g)=> setTab((lastByGroup.current&&lastByGroup.current[g])||'battle');
+
+  useEffect(()=>{
+    if(!me) return; let cancelled=false; setLoaded(false); setVotes([]);
+    if(offline){ setVotes(LS.get('ss_votes_'+me.room,[])); setLoaded(true); return; }
+    const supa=createClient(conf.url,conf.key,{realtime:{params:{eventsPerSecond:12}}}); supaRef.current=supa;
+    const add=row=> setVotes(v=> v.some(x=>x.id===row.id)?v:[...v,row]);
+    supa.from('votes').select('*').eq('room',me.room).order('created_at').then(({data})=>{ if(!cancelled){ setVotes(data||[]); setLoaded(true);} });
+    supa.from('guesses').select('*').eq('room',me.room).then(({data})=>{ if(!cancelled&&data) setGuesses(data); });
+    supa.from('duels').select('winner,song_a,song_b,mode').eq('room',me.room).then(({data})=>{ if(!cancelled&&data) setDuelWins(data); });
+    const chan=supa.channel('room:'+me.room,{config:{broadcast:{self:true}}});
+    chan.on('postgres_changes',{event:'INSERT',schema:'public',table:'votes',filter:'room=eq.'+me.room}, p=>add(p.new));
+    chan.on('postgres_changes',{event:'INSERT',schema:'public',table:'guesses',filter:'room=eq.'+me.room}, p=> setGuesses(g=> g.some(x=>x.id===p.new.id)?g:[...g,p.new]));
+    chan.on('postgres_changes',{event:'INSERT',schema:'public',table:'duels',filter:'room=eq.'+me.room}, p=> setDuelWins(d=>[...d,p.new]));
+    // "who's online" via broadcast heartbeats (presence isn't reliable on every project)
+    const onlineMap=new Map(); let sig='';
+    const refreshOnline=()=>{ const now=Date.now(), arr=[];
+      for(const [id,v] of [...onlineMap]){ if(now-v.ts<11000) arr.push({id:v.id,name:v.name,color:v.color}); else onlineMap.delete(id); }
+      arr.sort((a,b)=> a.id<b.id?-1:1); const s=arr.map(x=>x.id).join(',');
+      if(s!==sig){ sig=s; setOnline(arr); } };
+    chan.on('broadcast',{event:'hb'},({payload})=>{ onlineMap.set(payload.id,{id:payload.id,name:payload.name,color:payload.color,ts:Date.now()}); refreshOnline(); });
+    let hb=null;
+    const beat=()=>{ onlineMap.set(me.id,{id:me.id,name:me.name,color:me.color,ts:Date.now()}); refreshOnline();
+      chan.send({type:'broadcast',event:'hb',payload:{id:me.id,name:me.name,color:me.color}}); };
+    chan.subscribe(st=>{ if(st==='SUBSCRIBED'){ beat(); hb=setInterval(beat,4000); } });
+    const pr=setInterval(refreshOnline,4000);
+    return ()=>{ cancelled=true; if(hb) clearInterval(hb); clearInterval(pr); try{ chan.unsubscribe(); }catch{} try{ supa.removeAllChannels(); }catch{} };
+  },[me&&me.id, me&&me.room, conf.url, conf.key, offline]);
+
+  // "active" season powers the live ranking / group / clashes; all votes feed analytics & seasons
+  const activeVotes=useMemo(()=> votes.filter(v=> (v.season||'current')==='current'), [votes]);
+  const players=useMemo(()=>computeStats(activeVotes),[activeVotes]);
+  const myP=me?players[me.id]:null;
+
+  const submitVote=useCallback(async(winner,loser,decidedMs)=>{
+    if(!me) return null;
+    const core={room:me.room,player_id:me.id,player_name:me.name,player_color:me.color,winner,loser};
+    const base={...core, decided_ms:(decidedMs!=null? Math.round(decidedMs): null), season:'current'};
+    if(offline){ const row={...base,id:uid(),created_at:new Date().toISOString()};
+      setVotes(v=>{ const nv=[...v,row]; LS.set('ss_votes_'+me.room,nv); return nv; }); return row.id; }
+    let {data,error}=await supaRef.current.from('votes').insert(base).select().single();
+    if(error){ const r2=await supaRef.current.from('votes').insert(core).select().single(); data=r2.data; error=r2.error; } // schema not migrated yet → save core fields
+    if(error){ console.error(error); return null; }
+    setVotes(v=> v.some(x=>x.id===data.id)?v:[...v,data]); return data.id;
+  },[me,offline]);
+
+  // drag-to-rerank writes one or more rating "anchors" in a single batch (precise placement, even through ties)
+  const submitAnchors=useCallback(async(anchors)=>{
+    if(!me || !anchors || !anchors.length) return;
+    const core=anchors.map(a=>({room:me.room,player_id:me.id,player_name:me.name,player_color:me.color,
+      winner:a.id, loser:ANCHOR+':'+a.rating}));   // full-precision rating rides in the always-present loser column
+    const base=core.map((c,i)=>({...c, decided_ms:Math.round(anchors[i].rating), season:'current'}));
+    if(offline){ const rows=base.map(r=>({...r,id:uid(),created_at:new Date().toISOString()}));
+      setVotes(v=>{ const nv=[...v,...rows]; LS.set('ss_votes_'+me.room,nv); return nv; }); return; }
+    let {data,error}=await supaRef.current.from('votes').insert(base).select();
+    if(error){ const r2=await supaRef.current.from('votes').insert(core).select(); data=r2.data; error=r2.error; }
+    if(error){ console.error(error); return; }
+    if(data&&data.length){ const ids=new Set(data.map(r=>r.id)); setVotes(v=>[...v.filter(x=>!ids.has(x.id)),...data]); }
+  },[me,offline]);
+
+  const deleteVote=useCallback(async(id)=>{   // "go back" / undo a pick
+    if(!id||!me) return;
+    if(offline){ setVotes(v=>{ const nv=v.filter(x=>x.id!==id); LS.set('ss_votes_'+me.room,nv); return nv; }); return; }
+    setVotes(v=> v.filter(x=>x.id!==id));
+    await supaRef.current.from('votes').delete().eq('id',id);
+  },[me,offline]);
+
+  const freezeSeason=useCallback(async(label)=>{
+    if(!me) return; const lbl=(label||'').trim().slice(0,40)||('archive '+new Date().toISOString().slice(0,10));
+    if(offline){ setVotes(v=>{ const nv=v.map(x=> x.player_id===me.id && (x.season||'current')==='current'? {...x,season:lbl}:x); LS.set('ss_votes_'+me.room,nv); return nv; }); return true; }
+    const {error}=await supaRef.current.from('votes').update({season:lbl}).eq('room',me.room).eq('player_id',me.id).eq('season','current');
+    if(error){ alert('Could not freeze: '+error.message); return false; }
+    setVotes(v=> v.map(x=> x.player_id===me.id && (x.season||'current')==='current'? {...x,season:lbl}:x)); return true;
+  },[me,offline]);
+
+  const resetMine=useCallback(async()=>{
+    if(!me||!confirm('Erase all of your battles in this room? (Others keep theirs.)')) return;
+    if(offline){ setVotes(v=>{ const nv=v.filter(x=>x.player_id!==me.id); LS.set('ss_votes_'+me.room,nv); return nv; }); setMenu(false); return; }
+    await supaRef.current.from('votes').delete().eq('room',me.room).eq('player_id',me.id);
+    setVotes(v=>v.filter(x=>x.player_id!==me.id)); setMenu(false);
+  },[me,offline]);
+
+  const deleteProfile=useCallback(async(playerId, playerName)=>{   // remove a whole profile + its data
+    if(!playerId||!me) return false;
+    if(offline){ setVotes(v=>{ const nv=v.filter(x=>x.player_id!==playerId); LS.set('ss_votes_'+me.room,nv); return nv; }); return true; }
+    const supa=supaRef.current; if(!supa) return false;
+    await supa.from('votes').delete().eq('room',me.room).eq('player_id',playerId);
+    await supa.from('guesses').delete().eq('room',me.room).eq('guesser_id',playerId);
+    if(playerName){ await supa.from('duels').delete().eq('room',me.room).eq('player_a',playerName);
+      await supa.from('duels').delete().eq('room',me.room).eq('player_b',playerName); }
+    setVotes(v=>v.filter(x=>x.player_id!==playerId));
+    setGuesses(g=>g.filter(x=>x.guesser_id!==playerId));
+    return true;
+  },[me,offline]);
+
+  if(!conf.ready && !LS.get('ss_offline_ok',false) && !me)
+    return html`<${Setup} onSaved=${c=>setConf(c)} onSkip=${()=>{ LS.set('ss_offline_ok',true); setConf(cfg()); }} />`;
+  if(!me) return html`<${Join} offline=${offline} onJoin=${p=>{ LS.set('ss_me',p); setMe(p); }} />`;
+
+  const onlineIds=new Set(online.map(o=>o.id));
+  const others=Object.values(players).filter(p=>p.id!==me.id);
+  const clashCount=others.reduce((n,o)=> n+derivedClashes(myP,o).length, 0);
+
+  return html`
+    <${Header} me=${me} online=${online} offline=${offline} onMenu=${()=>setMenu(true)} />
+    <main class="wrap">
+      ${!loaded ? html`<p class="muted" style="text-align:center;padding:46px 0" class="label">Loading the room</p>` : html`
+        ${tab==='battle' && html`<${Battle} me=${me} myP=${myP} votes=${votes} onVote=${submitVote} onUndo=${deleteVote} offline=${offline} />`}
+        ${tab==='mine' && html`<${You} me=${me} myP=${myP} votes=${votes} guesses=${guesses} onFreeze=${freezeSeason} offline=${offline} />`}
+        ${tab==='pyramid' && html`<${Pyramid} me=${me} players=${players} duels=${duelWins} onVote=${submitVote} onAnchors=${submitAnchors} offline=${offline} />`}
+        ${tab==='group' && html`<${Group} me=${me} players=${players} votes=${votes} guesses=${guesses} online=${onlineIds} offline=${offline} />`}
+        ${tab==='clash' && html`<${Clashes} me=${me} myP=${myP} players=${players} offline=${offline} />`}
+        ${tab==='duel' && html`<${Duel} me=${me} supa=${supaRef.current} online=${online} offline=${offline} onVote=${submitVote} onUndo=${deleteVote} />`}
+        ${tab==='guess' && html`<${Guess} me=${me} players=${players} supa=${supaRef.current} guesses=${guesses} offline=${offline} room=${me.room} />`}
+      `}
+    </main>
+    <${Tabs} tab=${tab} setTab=${setTab} goGroup=${goGroup} clashCount=${clashCount} />
+    ${menu && html`<${Menu} me=${me} offline=${offline} players=${players} onClose=${()=>setMenu(false)} onReset=${resetMine}
+      onDeleteProfile=${deleteProfile} onLogout=${()=>{ LS.del('ss_me'); setMe(null); setMenu(false); }}
+      onSwitch=${()=>{ LS.del('ss_me'); setMe(null); setMenu(false); }} />`}
+  `;
+}
+
+function Header({me,online,offline,onMenu}){
+  return html`<header class="top"><div class="row">
+    <div class="wordmark">The <span class="n">Swift</span> Index</div>
+    <span class="roomtag">${me.room}</span>
+    <div class="grow"></div>
+    <div class="presence">
+      ${offline ? html`<span class="roomtag">solo</span>` :
+        online.slice(0,5).map(o=> html`<div class="ava lit" title=${o.name} style=${{background:o.color}}>${initials(o.name)}</div>`)}
+    </div>
+    <button class="icon-btn" onClick=${onMenu} aria-label="Menu">≡</button>
+  </div></header>`;
+}
+
+const NAV=[
+  { group:'games', label:'Games', items:[['battle','Battle'],['duel','Duel'],['guess','Guess']] },
+  { group:'analytics', label:'Analytics', items:[['mine','You'],['pyramid','Pyramid'],['group','Circle'],['clash','Clashes']] },
+];
+const TAB_GROUP={}; NAV.forEach(g=> g.items.forEach(([id])=> TAB_GROUP[id]=g.group));
+function Tabs({tab,setTab,goGroup,clashCount}){
+  const curGroup=TAB_GROUP[tab]||'games';
+  const group=NAV.find(g=>g.group===curGroup)||NAV[0];
+  return html`<nav class="tabs">
+    <div class="subrow">
+      ${group.items.map(([id,label])=> html`<button class=${'tab '+(tab===id?'active':'')} onClick=${()=>setTab(id)}>
+        <span class="ind"></span>${id==='clash'&&clashCount>0?html`<span class="dot"></span>`:''}${label}</button>`)}
+    </div>
+    <div class="grouprow">
+      ${NAV.map(g=> html`<button class=${'gtab '+(curGroup===g.group?'on':'')} onClick=${()=>goGroup(g.group)}>${g.label}</button>`)}
+    </div>
+  </nav>`;
+}
+
+/* ---------- Battle ---------- */
+function Battle({me,myP,votes,onVote,onUndo,offline}){
+  const [pair,setPair]=useState(null);
+  const [busy,setBusy]=useState(false);
+  const [scope,setScope]=useState(LS.get('ss_scope_'+me.room,'all'));   // remembered across returns
+  const [last,setLast]=useState(null);     // {id, pair} of the most recent pick, for undo
+  const lastKey=useRef(''); const shownAt=useRef(Date.now());
+  const next=useCallback(()=>{ const [a,b]=pickMatchup(myP,lastKey.current,scope); lastKey.current=pairKey(a,b); shownAt.current=Date.now(); setPair([a,b]); },[myP,scope]);
+  useEffect(()=>{ next(); },[scope]);          // roll a fresh pair on mount and on scope change
+  const choose=async(w,l)=>{ if(busy)return; setBusy(true); const shown=pair; const ms=Math.min(Date.now()-shownAt.current,600000);
+    const id=await onVote(w,l,ms); setBusy(false); if(id) setLast({id, pair:shown}); next(); };
+  const undo=async()=>{ if(busy||!last) return; const L=last; setLast(null); setPair(L.pair); lastKey.current=pairKey(L.pair[0],L.pair[1]); shownAt.current=Date.now(); if(onUndo) await onUndo(L.id); };
+  useEffect(()=>{ const h=e=>{ if(!pair)return;
+    if(e.key==='ArrowLeft') choose(pair[0],pair[1]);
+    else if(e.key==='ArrowRight') choose(pair[1],pair[0]);
+    else if(e.key===' '){ e.preventDefault(); next(); }
+    else if(e.key==='Backspace'){ e.preventDefault(); undo(); } };
+    window.addEventListener('keydown',h); return ()=>window.removeEventListener('keydown',h); },[pair,busy,last]);
+  if(!pair) return null;
+  const mine=myP?myP.n:0; const [a,b]=pair;
+  const albumSongs = scope==='all'? null : (ALBUM_GROUPS.find(g=>g.key===scope)||{songs:[]}).songs;
+  const poolN = scope==='all'? TOTAL : albumSongs.length;
+  const seenInScope = scope==='all' ? (myP? Object.keys(myP.counts).length : 0) : albumSongs.filter(id=> myP && myP.counts[id]>0).length;
+  const pct = poolN? Math.round(seenInScope/poolN*100) : 0;
+  const sameAlbum = SONG_BY_ID[a].albumKey===SONG_BY_ID[b].albumKey;
+  const roundLabel = scope!=='all' ? ('Mini round · '+groupName(scope))
+    : (sameAlbum ? ('Ranking · '+SONG_BY_ID[a].album) : 'Finals · the best across the eras');
+  return html`
+    ${offline && html`<div class="notice" style="margin-top:18px">Solo mode — your battles save on this device only. Add your group connection (menu) to play live with friends.</div>`}
+    <div class="progress">
+      <span class="label">${pct}% · ${mine} battle${mine===1?'':'s'}</span>
+      <div class="bar"><i style=${{width:pct+'%'}}></i></div>
+      <span class="label num">${seenInScope} / ${poolN}</span>
+    </div>
+    <div style="display:flex;justify-content:center;margin-top:16px">
+      <select class="scope-sel" value=${scope} onChange=${e=>{ setScope(e.target.value); LS.set('ss_scope_'+me.room, e.target.value); }}>
+        <option value="all">Rank all songs</option>
+        ${ALBUM_GROUPS.map(g=> html`<option value=${g.key}>Mini round · ${g.name}</option>`)}
+      </select>
+    </div>
+    <div class="label" style="text-align:center;margin-top:18px;color:var(--accent)">${roundLabel}</div>
+    <div class="ask" style="margin-top:6px">Which is better?</div>
+    <p class="ask-sub">Tap one · or use ← / → · space to skip</p>
+    <div class="versus">
+      <${SongCard} id=${a} side="left" onPick=${()=>choose(a,b)} />
+      <div class="vs-rule"><span class="l"></span><span class="w">versus</span><span class="l"></span></div>
+      <${SongCard} id=${b} side="right" onPick=${()=>choose(b,a)} />
+    </div>
+    <div class="actions-row">
+      ${last && html`<button class="btn outline sm" onClick=${undo}>↶ Go back</button>`}
+      <button class="btn outline sm" onClick=${next}>Skip</button>
+    </div>`;
+}
+function SongCard({id,side,onPick,plain}){
+  const s=SONG_BY_ID[id];
+  return html`<button class="song" style=${{'--c':s.color}} onClick=${onPick}>
+    <div class="album">${s.album} · ${s.year}</div>
+    <div class="ttl">${s.title}</div>
+    ${!plain && html`<span class="key">${side==='left'?'←':'→'}</span>`}
+  </button>`;
+}
+
+/* ---------- Pyramid: one ranked view, many data sources ---------- */
+function Pyramid({me,players,duels,onVote,onAnchors,offline}){
+  const others=Object.values(players).filter(p=>p.id!==me.id);
+  const [source,setSource]=useState('me');   // 'me' | 'all' | 'clashes' | personId
+  const [album,setAlbum]=useState('all');
+  const [sel,setSel]=useState(null);
+  const [rerank,setRerank]=useState(null);   // song id being re-ranked
+  const [drag,setDrag]=useState(null);       // {id,idx} the tile being dragged
+  const [ghost,setGhost]=useState(null);     // {x,y,name} floating label
+  const [over,setOver]=useState(null);       // global index of hovered tile
+  const dragRef=useRef(null);
+  const data=useMemo(()=>{
+    let l=[];
+    if(source==='clashes'){
+      const wins={}; for(const d of (duels||[])){ if(d.winner && SONG_BY_ID[d.winner]) wins[d.winner]=(wins[d.winner]||0)+1; }
+      l=Object.keys(wins).map(id=>({id, value:wins[id], meta:wins[id]+' clash'+(wins[id]===1?'':'es')+' won'})).sort((a,b)=> b.value-a.value);
+    } else if(source==='all'){
+      l=groupConsensus(players).map(r=>({id:r.id, value:r.rating, meta:Math.round(r.rating)+' avg · '+r.raters+' ranker'+(r.raters===1?'':'s')}));
+    } else {
+      const p=source==='me'? players[me.id] : players[source];
+      l=leaderboard(p).map(r=>({id:r.id, value:r.rating, meta:Math.round(r.rating)+' rating · '+r.count+' battle'+(r.count===1?'':'s')}));
+    }
+    if(album!=='all') l=l.filter(r=> albumOf(r.id)===album);
+    return l;
+  },[source,album,players,duels,me.id]);
+  if(offline) return html`<${Empty} title="The Pyramid is live-only" sub="Connect your group to see everyone's rankings stacked into a pyramid." />`;
+  const MAXROWS=7; const rows=[]; let i=0,r=1;
+  while(i<data.length && r<=MAXROWS){ rows.push({items:data.slice(i,i+r), start:i}); i+=r; r++; }
+  const selected = (sel!=null && data.find(d=>d.id===sel)) || data[0];
+  const selRank = selected ? data.findIndex(d=>d.id===selected.id)+1 : 0;
+  const srcLabel = source==='me'?'Your ranking' : source==='all'?'Collective ranking' : source==='clashes'?'Clash winners' : ((players[source]&&players[source].name)||'?')+"'s ranking";
+  const draggable = source==='me' && data.length>1;   // re-rank only your own ranking by dragging
+
+  // ---- drag-to-rerank: drop writes a rating "anchor" that places the song exactly, flowing into all your rankings ----
+  // Listeners live on window (not the tile) so the release always registers even if touch pointer-capture drops mid-drag.
+  const TAP=8;   // px of movement below which a press counts as a tap (select), not a drag
+  const dataRef=useRef(data); dataRef.current=data;
+  const onAnchorsRef=useRef(onAnchors); onAnchorsRef.current=onAnchors;
+  function insertIndex(d, fromIdx, ov){                // index within the list-minus-dragged where it should land
+    if(!ov || d[ov.idx]==null) return -1;
+    const other=d.filter((_,i)=>i!==fromIdx);
+    const oj=other.findIndex(x=>x.id===d[ov.idx].id); if(oj<0) return -1;   // hovering own tile → no-op
+    return ov.side==='before' ? oj : oj+1;
+  }
+  // Compute the rating anchor(s) a drop should write. Normally one (midpoint of new neighbors);
+  // but if the neighbors are tied (no room between equal ratings) we spread that tied block into
+  // distinct ratings so the dragged song lands EXACTLY at the dropped slot. Returns [{id,rating}].
+  function placeDrop(d, fromIdx, ov){
+    const X=d[fromIdx]; if(!X) return [];
+    const ins=insertIndex(d, fromIdx, ov); if(ins<0) return [];
+    const other=d.filter((_,i)=>i!==fromIdx);
+    const U= ins>0 ? other[ins-1] : null;              // should end up just ABOVE X (higher rating)
+    const L= ins<other.length ? other[ins] : null;     // should end up just BELOW X (lower rating)
+    const uR= U? U.value : (L? L.value+2 : BASE+2);
+    const lR= L? L.value : (U? U.value-2 : BASE-2);
+    if(uR - lR > 1e-6) return [{id:X.id, rating:(uR+lR)/2}];   // room between neighbors → one clean anchor
+    // tie: spread the contiguous equal-rated run (plus X) into evenly-spaced distinct ratings
+    const v= L? L.value : (U? U.value : BASE);
+    let lo=ins; while(lo>0 && Math.abs(other[lo-1].value - v) < 1e-9) lo--;
+    let hi=ins; while(hi<other.length && Math.abs(other[hi].value - v) < 1e-9) hi++;
+    const block=other.slice(lo,hi);
+    const desired=block.slice(0, ins-lo).concat([X], block.slice(ins-lo));   // X inserted at its slot
+    const n=desired.length;
+    const upper= lo>0 ? other[lo-1].value : v + (n+2);
+    const lower= hi<other.length ? other[hi].value : v - (n+2);
+    const step=(upper-lower)/(n+1);
+    return desired.map((s,i)=> ({id:s.id, rating: upper - step*(i+1)}));
+  }
+  const dragApi=useRef(null);
+  if(!dragApi.current){
+    const detach=()=>{ const f=dragApi.current; window.removeEventListener('pointermove',f.move); window.removeEventListener('pointerup',f.up); window.removeEventListener('pointercancel',f.up); };
+    const move=(e)=>{
+      const dr=dragRef.current; if(!dr) return;
+      if(!dr.moved && Math.hypot(e.clientX-dr.sx, e.clientY-dr.sy)<TAP) return;
+      if(!dr.moved){ dr.moved=true; setDrag({id:dr.id, idx:dr.idx}); }
+      if(e.cancelable) e.preventDefault();
+      setGhost({x:e.clientX, y:e.clientY, name:dr.name});
+      const el=document.elementFromPoint(e.clientX,e.clientY);
+      const cell=el&&el.closest&&el.closest('.pyr-cell');
+      let ov=null;
+      if(cell&&cell.dataset&&cell.dataset.idx!=null){
+        const idx=Number(cell.dataset.idx), r=cell.getBoundingClientRect();
+        ov={ idx, side: e.clientX < r.left+r.width/2 ? 'before':'after' };   // left half→before gap, right half→after gap
+      }
+      dr.over=ov; setOver(ov);
+    };
+    const up=()=>{
+      const dr=dragRef.current; dragRef.current=null; detach();
+      setDrag(null); setGhost(null); setOver(null);
+      if(!dr) return;
+      if(!dr.moved){ setSel(dr.id); return; }           // it was a tap → just open the detail card
+      const d=dataRef.current, dragId=d[dr.idx]&&d[dr.idx].id; if(!dragId) return;
+      const anchors=placeDrop(d, dr.idx, dr.over); if(!anchors.length) return;
+      setSel(dragId);
+      const fn=onAnchorsRef.current; if(fn) fn(anchors);
+    };
+    dragApi.current={move,up,detach};
+  }
+  useEffect(()=>()=>{ if(dragApi.current) dragApi.current.detach(); },[]);
+  function onDown(e,d,idx){
+    if(!draggable){ setSel(d.id); return; }
+    if(e.button!=null && e.button>0) return;
+    dragRef.current={id:d.id, idx, sx:e.clientX, sy:e.clientY, over:null, moved:false, name:fmtSong(d.id)};
+    const f=dragApi.current;
+    window.addEventListener('pointermove', f.move, {passive:false});
+    window.addEventListener('pointerup', f.up);
+    window.addEventListener('pointercancel', f.up);
+  }
+  const dropRank = drag ? insertIndex(data, drag.idx, over) : -1;   // 0-based slot in list-minus-dragged → new rank = +1
+
+  if(rerank){
+    const pool = data.map(d=>d.id).filter(id=> id!==rerank);
+    return html`<div>
+      <div class="head"><h2>The Pyramid</h2><span class="line"></span></div>
+      <${ReRank} song=${rerank} pool=${pool} onVote=${onVote} onClose=${()=>setRerank(null)} />
+    </div>`;
+  }
+  return html`<div>
+    <div class="head"><h2>The Pyramid</h2><span class="line"></span></div>
+    <div class="seg" style="flex-wrap:wrap">
+      <button class=${source==='me'?'on':''} onClick=${()=>{setSource('me');setSel(null);}}>You</button>
+      <button class=${source==='all'?'on':''} onClick=${()=>{setSource('all');setSel(null);}}>Collective</button>
+      <button class=${source==='clashes'?'on':''} onClick=${()=>{setSource('clashes');setSel(null);}}>Clash wins</button>
+      ${others.map(o=> html`<button class=${source===o.id?'on':''} onClick=${()=>{setSource(o.id);setSel(null);}}>${o.name}</button>`)}
+    </div>
+    <div style="display:flex;justify-content:center;margin:6px 0 2px">
+      <select class="scope-sel" value=${album} onChange=${e=>{setAlbum(e.target.value);setSel(null);}}>
+        <option value="all">All eras</option>
+        ${ALBUM_GROUPS.map(g=> html`<option value=${g.key}>${g.name}</option>`)}
+      </select>
+    </div>
+    <p class="label" style="text-align:center;margin:8px 0 0;color:var(--accent)">${srcLabel}</p>
+    ${draggable && html`<div class="pyr-drophint">${ drag ? (dropRank>=0 ? '“'+fmtSong(drag.id)+'”  →  #'+(dropRank+1) : 'Drag onto a song to choose a spot…') : '' }</div>`}
+    ${data.length===0
+      ? html`<${Empty} title="Nothing here yet" sub=${source==='clashes'?'No clashes have been settled in a duel yet.':'No songs ranked for this view yet.'} />`
+      : html`<div>
+        <div class="pyramid">
+          ${rows.map(row=> html`<div class="pyr-row">
+            ${row.items.map((d,j)=>{ const gIdx=row.start+j; const rank=gIdx+1;
+              const isOver = drag && over && over.idx===gIdx && gIdx!==drag.idx;
+              const dropCls = isOver ? (over.side==='before'?' dropbefore':' dropafter') : '';
+              return html`<button data-idx=${gIdx}
+                class=${'pyr-cell'+(draggable?' drag':'')+(selected&&d.id===selected.id?' sel':'')+(rank===1?' top':'')+(drag&&drag.id===d.id?' dragging':'')+dropCls}
+                style=${{background:colorOf(d.id)}}
+                onPointerDown=${e=>onDown(e,d,gIdx)}
+                title=${fmtSong(d.id)}><span class="rk">${rank}</span><span class="nm">${fmtSong(d.id)}</span></button>`; })}
+          </div>`)}
+        </div>
+        ${selected && html`<div class="card pad" style="text-align:center">
+          <div class="label">#${selRank} · ${SONG_BY_ID[selected.id].album}</div>
+          <div style="font-size:24px;font-family:var(--serif);line-height:1.15;margin:6px 0 3px">${fmtSong(selected.id)}</div>
+          <div class="muted" style="font-size:14px">${selected.meta}</div>
+          ${source==='me' && data.length>1 && html`<button class="btn outline sm" style="margin-top:14px" onClick=${()=>setRerank(selected.id)}>↕ Re-rank with comparisons</button>`}
+        </div>`}
+        <p class="label" style="text-align:center;margin:14px 0 0">${draggable?'drag a tile to re-rank · tap to inspect':'tap any tile'} · colored by era · ${data.length} ranked</p>
+      </div>`}
+    ${ghost && html`<div class="pyr-ghost" style=${{left:ghost.x+'px', top:ghost.y+'px'}}>${ghost.name}</div>`}
+  </div>`;
+}
+/* binary-insertion re-rank: place a song among the others via head-to-head votes */
+function ReRank({song, pool, onVote, onClose}){
+  const [lo,setLo]=useState(0); const [hi,setHi]=useState(pool.length);
+  const [count,setCount]=useState(0); const [busy,setBusy]=useState(false);
+  const mid=Math.floor((lo+hi)/2); const opp=(lo<hi)? pool[mid] : null;
+  const choose=async(songWins)=>{ if(busy||!opp) return; setBusy(true);
+    if(songWins){ if(onVote) await onVote(song, opp); setHi(mid); }
+    else { if(onVote) await onVote(opp, song); setLo(mid+1); }
+    setCount(c=>c+1); setBusy(false); };
+  if(lo>=hi || !opp) return html`<div class="stage">
+    <div class="label kicker">Re-ranked in ${count} compare${count===1?'':'s'}</div>
+    <h2 style="font-size:26px;line-height:1.15">${fmtSong(song)}</h2>
+    <p class="muted" style="margin-top:6px">Your ranking and the pyramid have updated.</p>
+    <div class="actions-row"><button class="btn" onClick=${onClose}>Back to the pyramid</button></div></div>`;
+  const Card=(id,wins)=> html`<button class="song" style=${{'--c':colorOf(id)}} onClick=${()=>choose(wins)}>
+    <div class="album">${SONG_BY_ID[id].album} · ${SONG_BY_ID[id].year}</div><div class="ttl">${fmtSong(id)}</div></button>`;
+  return html`<div>
+    <div class="ask" style="margin-top:8px">Which is better?</div>
+    <p class="ask-sub">Placing ${fmtSong(song)} · compare ${count+1}</p>
+    <div class="versus">
+      ${Card(song,true)}
+      <div class="vs-rule"><span class="l"></span><span class="w">versus</span><span class="l"></span></div>
+      ${Card(opp,false)}
+    </div>
+    <div class="actions-row"><button class="btn outline sm" onClick=${onClose}>Stop here</button></div>
+  </div>`;
+}
+
+/* ---------- ranking list (reusable) ---------- */
+function RankList({list}){
+  if(!list || !list.length) return html`<div class="empty" style="padding:30px 16px"><p>No ranking yet.</p></div>`;
+  return html`<div class="list">
+    ${list.map((r,i)=> html`<div class="row">
+      <div class=${'rk '+(i<3?'top':'')}>${i+1}</div>
+      <div class="tick" style=${{'--c':colorOf(r.id),background:colorOf(r.id)}}></div>
+      <div class="body"><div class="t">${fmtSong(r.id)}</div>
+        <div class="s">${SONG_BY_ID[r.id].album} · ${r.count} battle${r.count===1?'':'s'}</div></div>
+      <div class="sc num">${Math.round(r.rating)}</div>
+    </div>`)}
+  </div>`;
+}
+
+/* ---------- You: ranking + analytics + seasons ---------- */
+function You({me,myP,votes,guesses,onFreeze,offline}){
+  const [view,setView]=useState('ranking');
+  const list=useMemo(()=>leaderboard(myP),[myP]);
+  return html`
+    <div class="head"><h2>You</h2><span class="line"></span><span class="meta">${me.name}</span></div>
+    <div class="seg">
+      <button class=${view==='ranking'?'on':''} onClick=${()=>setView('ranking')}>Ranking</button>
+      <button class=${view==='stats'?'on':''} onClick=${()=>setView('stats')}>Analytics</button>
+      <button class=${view==='seasons'?'on':''} onClick=${()=>setView('seasons')}>Seasons</button>
+    </div>
+    ${view==='ranking' && (list.length
+      ? html`<div><${RankList} list=${list} /><p class="label" style="margin:12px 2px 0">${list.length} songs ranked · current season</p></div>`
+      : html`<${Empty} title="Your list is empty" sub="Play a few battles and your ranking takes shape here." />`)}
+    ${view==='stats' && html`<${Analytics} votes=${votes} guesses=${guesses} playerId=${me.id} season="current" name=${me.name} self=${true} />`}
+    ${view==='seasons' && html`<${Seasons} me=${me} votes=${votes} onFreeze=${onFreeze} offline=${offline} />`}
+  `;
+}
+
+/* ---------- deep analytics for one player + season ---------- */
+function Analytics({votes, playerId, season, name, self, guesses}){
+  const [alb,setAlb]=useState('all');
+  const all=useMemo(()=> votesForSeason(votes, playerId, season||'current'), [votes,playerId,season]);
+  const filtered=useMemo(()=> filterByAlbum(all, alb), [all,alb]);
+  const a=useMemo(()=> computeAnalytics(filtered), [filtered]);
+  const allStats=useMemo(()=> computeAnalytics(all), [all]);
+  const who = self ? 'You' : name;
+  const knowsThem=useMemo(()=>{ const agg={}; for(const g of (guesses||[])){ if(g.target_name!==name||g.guesser_id===playerId) continue;
+      if(!agg[g.guesser_id]) agg[g.guesser_id]={name:g.guesser_name,correct:0,total:0,rounds:0};
+      agg[g.guesser_id].correct+=g.correct; agg[g.guesser_id].total+=g.total; agg[g.guesser_id].rounds++; }
+    return Object.values(agg).filter(x=>x.total>0).sort((x,y)=> (y.correct/y.total)-(x.correct/x.total)||y.correct-x.correct); },[guesses,name,playerId]);
+  const theyKnow=useMemo(()=>{ const agg={}; for(const g of (guesses||[])){ if(g.guesser_id!==playerId) continue;
+      if(!agg[g.target_name]) agg[g.target_name]={name:g.target_name,correct:0,total:0,rounds:0};
+      agg[g.target_name].correct+=g.correct; agg[g.target_name].total+=g.total; agg[g.target_name].rounds++; }
+    return Object.values(agg).filter(x=>x.total>0).sort((x,y)=> (y.correct/y.total)-(x.correct/x.total)||y.correct-x.correct); },[guesses,playerId]);
+  if(!all.length) return html`<${Empty} title="No analytics yet" sub=${self?'Play some battles and your stats appear here.':(who+" hasn't battled yet.")} />`;
+  const albumOpts=ALBUM_GROUPS.filter(g=> all.some(v=> albumOf(v.winner)===g.key && albumOf(v.loser)===g.key));
+  const mx=Math.max(1, ...allStats.albums.map(x=>x.avg));
+  return html`<div>
+    <div style="display:flex;justify-content:flex-start;margin:4px 0 14px">
+      <select class="scope-sel" value=${alb} onChange=${e=>setAlb(e.target.value)}>
+        <option value="all">All albums</option>
+        ${albumOpts.map(g=> html`<option value=${g.key}>${g.name}</option>`)}
+      </select>
+    </div>
+    <div class="stat-grid">
+      <div class="stat"><div class="k">Battles</div><div class="v num">${a.n}</div></div>
+      <div class="stat"><div class="k">Time deciding</div><div class="v num">${fmtMs(a.totalTime)}</div></div>
+      <div class="stat"><div class="k">Avg / decision</div><div class="v num">${fmtMs(a.avg)}</div></div>
+      <div class="stat"><div class="k">Median</div><div class="v num">${fmtMs(a.median)}</div></div>
+    </div>
+    ${a.longest && html`<div class="stat wide" style="margin-top:10px"><div class="k">Longest deliberation</div>
+      <div class="v" style="font-size:20px;font-family:var(--serif);line-height:1.2">${fmtSong(a.longest.winner)} <span class="muted serif-it" style="font-size:15px">over</span> ${fmtSong(a.longest.loser)}</div>
+      <div class="sub2">${who} took ${fmtMs(a.longest.decided_ms)} on this one</div></div>`}
+    ${a.fastest && a.timedN>1 && html`<div class="stat wide" style="margin-top:10px"><div class="k">Snap judgment</div>
+      <div class="v" style="font-size:20px;font-family:var(--serif);line-height:1.2">${fmtSong(a.fastest.winner)} <span class="muted serif-it" style="font-size:15px">over</span> ${fmtSong(a.fastest.loser)}</div>
+      <div class="sub2">decided in just ${fmtMs(a.fastest.decided_ms)}</div></div>`}
+    ${a.agonized.length>1 && html`<div>
+      <div class="head" style="margin:24px 2px 10px"><h2 class="sub">Hardest calls</h2><span class="line"></span></div>
+      ${a.agonized.map(x=> html`<div class="clash" style="padding:11px 14px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+        <span style="min-width:0;overflow:hidden;text-overflow:ellipsis">${fmtSong(x.winner)} <span class="muted serif-it">over</span> ${fmtSong(x.loser)}</span>
+        <span class="num" style="color:var(--accent);white-space:nowrap">${fmtMs(x.decided_ms)}</span></div></div>`)}
+    </div>`}
+    ${alb==='all' && allStats.albums.length>0 && html`<div>
+      <div class="head" style="margin:24px 2px 10px"><h2 class="sub">By album</h2><span class="line"></span><span class="meta">avg time to decide</span></div>
+      <div class="bars">
+        ${allStats.albums.map(x=> html`<div class="barrow">
+          <span class="bl">${x.name}</span>
+          <span class="bt"><i style=${{width:Math.round((x.avg/mx)*100)+'%'}}></i></span>
+          <span class="bv">${fmtMs(x.avg)}</span>
+        </div>`)}
+      </div>
+      <p class="label" style="margin:10px 2px 0">${allStats.albums[0].name} took the most agonizing</p>
+    </div>`}
+    ${knowsThem.length>0 && html`<div>
+      <div class="head" style="margin:24px 2px 10px"><h2 class="sub">Who knows ${self?'you':name} best</h2><span class="line"></span><span class="meta">guessing accuracy</span></div>
+      <div class="list">
+        ${knowsThem.slice(0,6).map((x,i)=> html`<div class="row">
+          <div class=${'rk '+(i<3?'top':'')}>${i+1}</div>
+          <div class="body"><div class="t">${x.name}</div><div class="s">${x.total} guess${x.total===1?'':'es'} · ${x.correct} right</div></div>
+          <div class="sc num">${Math.round(x.correct/x.total*100)}%</div>
+        </div>`)}
+      </div></div>`}
+    ${theyKnow.length>0 && html`<div>
+      <div class="head" style="margin:24px 2px 10px"><h2 class="sub">${self?'You read':name+' reads'} best</h2><span class="line"></span><span class="meta">friends ${self?'you':'they'} nail</span></div>
+      <div class="list">
+        ${theyKnow.slice(0,6).map((x,i)=> html`<div class="row">
+          <div class=${'rk '+(i<3?'top':'')}>${i+1}</div>
+          <div class="body"><div class="t">${x.name}</div><div class="s">${x.total} guess${x.total===1?'':'es'} · ${x.correct} right</div></div>
+          <div class="sc num">${Math.round(x.correct/x.total*100)}%</div>
+        </div>`)}
+      </div></div>`}
+  </div>`;
+}
+
+/* ---------- seasons / snapshots ---------- */
+function Seasons({me,votes,onFreeze,offline}){
+  const seasons=useMemo(()=> seasonsOf(votes, me.id), [votes]);
+  const current=seasons.find(s=>s.season==='current');
+  const past=seasons.filter(s=>s.season!=='current');
+  const [viewing,setViewing]=useState(null);
+  const [label,setLabel]=useState('');
+  const doFreeze=async()=>{ if(!current||!current.count){ alert('Nothing to freeze yet — play some battles first.'); return; }
+    const lbl=label.trim()||('archive '+new Date().toISOString().slice(0,10));
+    if(!confirm('Freeze your current ranking as "'+lbl+'" and start fresh? Your snapshot is saved — you can look back anytime.')) return;
+    const ok=await onFreeze(lbl); if(ok!==false) setLabel(''); };
+  if(viewing){
+    const vs=votesForSeason(votes, me.id, viewing);
+    const p=computeStats(vs)[me.id];
+    return html`<div>
+      <div class="head"><h2 style="font-size:22px">${viewing}</h2><span class="line"></span><button class="btn outline sm" onClick=${()=>setViewing(null)}>Back</button></div>
+      <${RankList} list=${leaderboard(p)} />
+      <div class="head" style="margin:26px 2px 10px"><h2 class="sub">Analytics</h2><span class="line"></span></div>
+      <${Analytics} votes=${votes} playerId=${me.id} season=${viewing} name=${viewing} />
+    </div>`;
+  }
+  return html`<div>
+    <div class="head"><h2>Seasons</h2><span class="line"></span></div>
+    ${offline && html`<div class="notice" style="margin-bottom:14px">Snapshots save to the cloud — connect your group (menu) to keep them across devices.</div>`}
+    <div class="card pad" style="margin-bottom:18px">
+      <div class="label">Freeze this season</div>
+      <p class="muted" style="font-size:14px;margin:7px 0 12px">Save your current ranking as a snapshot (like “2025”), then start a fresh one. Old snapshots stay forever so you can look back.</p>
+      <input placeholder="Name it — e.g. 2025" value=${label} onInput=${e=>setLabel(e.target.value)} maxLength=${40} />
+      <button class="btn" style="width:100%;margin-top:12px" onClick=${doFreeze}>Freeze & start fresh${current&&current.count?' · '+current.count+' battles':''}</button>
+    </div>
+    <div class="head" style="margin:6px 2px 12px"><h2 class="sub">Saved snapshots</h2><span class="line"></span><span class="meta">${past.length}</span></div>
+    ${past.length===0
+      ? html`<${Empty} title="No snapshots yet" sub="Freeze a season above to start a time capsule of your rankings." />`
+      : html`<div class="list">${past.map(s=> html`<button class="row" style="width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--line);cursor:pointer" onClick=${()=>setViewing(s.season)}>
+          <div class="body"><div class="t">${s.season}</div><div class="s">${s.count} battles · frozen ${relTime(s.last)}</div></div>
+          <div class="sc" style="color:var(--accent)">view →</div>
+        </button>`)}</div>`}
+  </div>`;
+}
+
+/* ---------- Group ---------- */
+function Group({me,players,votes,guesses,online,offline}){
+  const [view,setView]=useState('consensus');
+  const [person,setPerson]=useState(null);
+  const consensus=useMemo(()=>groupConsensus(players),[players]);
+  const roster=Object.values(players);
+  const recent=useMemo(()=>votes.filter(v=> !isAnchor(v.loser)).sort((a,b)=> new Date(b.created_at)-new Date(a.created_at)).slice(0,20),[votes]);
+  if(offline) return html`<${Empty} title="The Circle is live-only" sub="Connect your group (menu) and share the link — then everyone's rankings appear here, updating in real time." />`;
+  if(!roster.length) return html`<${Empty} title="No one has played yet" sub="Be the first to cast a few votes." />`;
+  if(person && players[person]){ const p=players[person]; return html`<div>
+    <div class="head"><div class="ava ${online.has(p.id)?'lit':''}" style=${{background:p.color,marginLeft:0}}>${initials(p.name)}</div>
+      <h2 style="font-size:22px">${p.name}${p.id===me.id?' · you':''}</h2><span class="line"></span>
+      <button class="btn outline sm" onClick=${()=>setPerson(null)}>Back</button></div>
+    <div class="head" style="margin:18px 2px 10px"><h2 class="sub">Ranking</h2><span class="line"></span><span class="meta">${p.n} battles</span></div>
+    <${RankList} list=${leaderboard(p)} />
+    <div class="head" style="margin:26px 2px 10px"><h2 class="sub">Analytics</h2><span class="line"></span></div>
+    <${Analytics} votes=${votes} guesses=${guesses} playerId=${p.id} season="current" name=${p.name} />
+  </div>`; }
+  return html`
+    <div class="head"><h2>The Circle</h2><span class="line"></span></div>
+    <div class="seg">
+      <button class=${view==='consensus'?'on':''} onClick=${()=>setView('consensus')}>Consensus</button>
+      <button class=${view==='players'?'on':''} onClick=${()=>setView('players')}>By person</button>
+      <button class=${view==='feed'?'on':''} onClick=${()=>setView('feed')}>Live feed</button>
+    </div>
+    ${view==='consensus' && html`<div class="list">
+      ${consensus.slice(0,120).map((r,i)=> html`<div class="row">
+        <div class=${'rk '+(i<3?'top':'')}>${i+1}</div>
+        <div class="tick" style=${{background:colorOf(r.id)}}></div>
+        <div class="body"><div class="t">${fmtSong(r.id)}</div>
+          <div class="s">${SONG_BY_ID[r.id].album} · ${r.raters} ranker${r.raters===1?'':'s'}</div></div>
+        <div class="sc num">${Math.round(r.rating)}</div>
+      </div>`)}
+    </div>`}
+    ${view==='players' && roster.sort((a,b)=>b.n-a.n).map(p=> html`<div style="margin-bottom:22px">
+      <div class="head" style="margin:24px 2px 10px;cursor:pointer" onClick=${()=>setPerson(p.id)}>
+        <div class="ava ${online.has(p.id)?'lit':''}" style=${{background:p.color, marginLeft:0}}>${initials(p.name)}</div>
+        <h2 style="font-size:20px">${p.name}${p.id===me.id?' · you':''}</h2>
+        <span class="line"></span><span class="meta">${p.n} battles</span>
+      </div>
+      <div class="list">
+        ${leaderboard(p).slice(0,5).map((r,i)=> html`<div class="row">
+          <div class=${'rk '+(i<3?'top':'')}>${i+1}</div>
+          <div class="tick" style=${{background:colorOf(r.id)}}></div>
+          <div class="body"><div class="t">${fmtSong(r.id)}</div></div>
+          <div class="sc num">${Math.round(r.rating)}</div>
+        </div>`)}
+        ${leaderboard(p).length===0 && html`<div class="row"><div class="muted" style="padding:4px">No battles yet</div></div>`}
+      </div>
+      <button class="btn outline sm" style="width:100%;margin-top:10px" onClick=${()=>setPerson(p.id)}>View ${p.name}'s full ranking & analytics →</button>
+    </div>`)}
+    ${view==='feed' && html`<div class="card pad feed">
+      ${recent.length===0 && html`<div class="muted">No activity yet.</div>`}
+      ${recent.map(v=> html`<div class="ev">
+        <span class="who" style=${{color:v.player_color}}>${v.player_name}</span> chose
+        <b>${fmtSong(v.winner)}</b> <span class="muted serif-it">over</span> ${fmtSong(v.loser)}</div>`)}
+    </div>`}`;
+}
+
+/* ---------- Clashes & common ground ---------- */
+function Clashes({me,myP,players,offline}){
+  const others=Object.values(players).filter(p=>p.id!==me.id);
+  const [tid,setTid]=useState(null);
+  const [mode,setMode]=useState('clash');   // 'clash' | 'agree'
+  const target=others.find(o=>o.id===tid)||others[0]||null;
+  if(offline) return html`<${Empty} title="This needs a friend" sub="Connect your group and get a friend to rank too — then see where you two agree and clash." />`;
+  if(!others.length) return html`<${Empty} title="No one to compare with yet" sub=${'Once a friend joins '+me.room+' and ranks some songs, this fills in.'} />`;
+  const derived=target?derivedClashes(myP,target):[];
+  const direct=target?directClashes(myP,target):[];
+  const agree=target?derivedAgreements(myP,target):[];
+  const clashBody = (!target||(!derived.length&&!direct.length))
+    ? html`<${Empty} title="No clashes yet" sub="You two either agree so far, or haven't ranked enough of the same songs. Keep battling." />`
+    : html`<div>
+        ${direct.length>0 && html`<div>
+          <div class="head" style="margin:24px 2px 12px"><h2 class="sub">Head to head</h2><span class="line"></span><span class="meta">same matchup, opposite pick</span></div>
+          ${direct.slice(0,30).map(c=> html`<${ClashRow} me=${me} other=${target} c=${c} mark=${true} />`)}
+        </div>`}
+        <div>
+          <div class="head" style="margin:24px 2px 12px"><h2 class="sub">In the rankings</h2><span class="line"></span><span class="meta">${derived.length} found</span></div>
+          ${derived.slice(0,60).map(c=> html`<${ClashRow} me=${me} other=${target} c=${c} />`)}
+        </div></div>`;
+  const agreeBody = !agree.length
+    ? html`<${Empty} title="No common ground yet" sub="Once you've both ranked enough of the same songs, the calls you agree on show up here." />`
+    : html`<div>
+        <div class="head" style="margin:24px 2px 12px"><h2 class="sub">You both agree</h2><span class="line"></span><span class="meta">${agree.length} found</span></div>
+        ${agree.slice(0,80).map(c=> html`<${AgreeRow} me=${me} other=${target} c=${c} />`)}
+      </div>`;
+  return html`
+    <div class="head"><h2>You &amp; ${target?target.name:'friends'}</h2><span class="line"></span></div>
+    <div class="seg">${others.map(o=> html`<button class=${target&&target.id===o.id?'on':''} onClick=${()=>setTid(o.id)}>${o.name}</button>`)}</div>
+    <div class="seg">
+      <button class=${mode==='clash'?'on':''} onClick=${()=>setMode('clash')}>Where you clash</button>
+      <button class=${mode==='agree'?'on':''} onClick=${()=>setMode('agree')}>Common ground</button>
+    </div>
+    ${mode==='clash' ? clashBody : agreeBody}`;
+}
+function AgreeRow({me,other,c}){
+  return html`<div class="clash">
+    <div class="top"><span class="pairname">${fmtSong(c.a)} / ${fmtSong(c.b)}</span><span class="badge" style="color:var(--good);border-color:var(--good)">agree</span></div>
+    <div class="pk" style="font-size:19px">You both rank <b>${fmtSong(c.hi)}</b> <span class="muted serif-it">over</span> ${fmtSong(c.lo)}</div>
+  </div>`;
+}
+function ClashRow({me,other,c,mark}){
+  return html`<div class="clash">
+    <div class="top"><span class="pairname">${fmtSong(c.a)} / ${fmtSong(c.b)}</span>${mark?html`<span class="badge">clash</span>`:''}</div>
+    <div class="cols">
+      <div class="col"><div class="nm" style=${{color:me.color}}>You rank higher</div><div class="pk">${fmtSong(c.myHi)}</div></div>
+      <div class="col r"><div class="nm" style=${{color:other.color}}>${other.name} ranks higher</div><div class="pk">${fmtSong(c.theirHi)}</div></div>
+    </div>
+  </div>`;
+}
+
+/* ---------- Guess: read your friends ---------- */
+// A round spans the target's WHOLE ranking — every ranked song appears, paired
+// across their list so each call has a clear preference. Capped so it stays playable.
+const GUESS_CAP = 50;
+function guessablePairs(p){
+  const ids = Object.keys(p.ratings).filter(id=> (p.counts[id]||0)>0 && SONG_BY_ID[id]);
+  if(ids.length<2) return [];
+  const ranked = ids.map(id=>({id,r:p.ratings[id]})).sort((a,b)=> b.r-a.r).map(x=>x.id);
+  const n=ranked.length, half=Math.floor(n/2), pairs=[];
+  for(let i=0;i<half;i++){ const A=ranked[i], B=ranked[i+half]; if(A===B) continue;
+    const higher = p.ratings[A]>=p.ratings[B]?A:B;
+    pairs.push(Math.random()<0.5? {a:A,b:B,higher} : {a:B,b:A,higher}); }
+  for(let i=pairs.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; const t=pairs[i]; pairs[i]=pairs[j]; pairs[j]=t; }
+  if(pairs.length>GUESS_CAP){ const step=pairs.length/GUESS_CAP, out=[]; for(let i=0;i<GUESS_CAP;i++) out.push(pairs[Math.floor(i*step)]); return out; }
+  return pairs;
+}
+function guessRankedCount(p){ return p? Object.keys(p.ratings).filter(id=>(p.counts[id]||0)>0 && SONG_BY_ID[id]).length : 0; }
+function knowsBoard(guesses){   // aggregate "who guessed best" overall
+  const agg={}; for(const g of (guesses||[])){ if(!agg[g.guesser_id]) agg[g.guesser_id]={id:g.guesser_id,name:g.guesser_name,correct:0,total:0,rounds:0};
+    agg[g.guesser_id].correct+=g.correct; agg[g.guesser_id].total+=g.total; agg[g.guesser_id].rounds++; }
+  return Object.values(agg).sort((a,b)=> b.correct-a.correct);
+}
+function Guess({me,players,supa,guesses,offline,room}){
+  const others = Object.values(players).filter(p=> p.id!==me.id && p.n>0);
+  const [tid,setTid]=useState(null);
+  const target = others.find(o=>o.id===tid)||others[0]||null;
+  const [round,setRound]=useState(null);   // {pairs, idx, correct}
+  const [reveal,setReveal]=useState(null);  // {pick, ok}
+  const [done,setDone]=useState(null);      // {correct,total,target}
+  const board=useMemo(()=> knowsBoard(guesses), [guesses]);
+  const myReads=useMemo(()=>{ const agg={};   // your accuracy per friend — who you read right
+    for(const g of (guesses||[])){ if(g.guesser_id!==me.id) continue;
+      if(!agg[g.target_name]) agg[g.target_name]={name:g.target_name,correct:0,total:0};
+      agg[g.target_name].correct+=g.correct; agg[g.target_name].total+=g.total; }
+    return Object.values(agg).filter(x=>x.total>0).sort((a,b)=> (b.correct/b.total)-(a.correct/a.total) || b.total-a.total);
+  },[guesses,me.id]);
+  if(offline) return html`<${Empty} title="Guessing is a group game" sub="Connect your group, then test how well you can read your friends' taste." />`;
+  if(!others.length) return html`<${Empty} title="No one to read yet" sub="Once a friend has ranked some songs, you can try to guess their taste." />`;
+  const start=()=>{ const pairs=guessablePairs(target); if(pairs.length<3){ alert(target.name+' needs to rank more songs first.'); return; }
+    setRound({pairs,idx:0,correct:0}); setReveal(null); setDone(null); };
+  const estQ=Math.min(GUESS_CAP, Math.floor(guessRankedCount(target)/2));
+  const guess=(song)=>{ if(reveal) return; const ok = song===round.pairs[round.idx].higher; setReveal({pick:song, ok});
+    if(supa) supa.from('guesses').insert({room, guesser_id:me.id, guesser_name:me.name, target_name:target.name, correct: ok?1:0, total:1}).then(()=>{}); }; // each guess counts — boards fill in live
+  const nextG=()=>{ const correct=round.correct+(reveal&&reveal.ok?1:0); const idx=round.idx+1;
+    if(idx>=round.pairs.length){ setDone({correct,total:round.pairs.length,target:target.name}); setRound(null); setReveal(null); }
+    else { setRound({...round,idx,correct}); setReveal(null); } };
+  return html`<div>
+    <div class="head"><h2>Read your friends</h2><span class="line"></span></div>
+    <div>
+      <div class="head" style="margin:6px 2px 10px"><h2 class="sub">Mind-reader leaderboard</h2><span class="line"></span><span class="meta">most right wins</span></div>
+      ${board.length>0 ? html`<div class="list">
+        ${board.slice(0,8).map((b,i)=> html`<div class="row">
+          <div class=${'rk '+(i<3?'top':'')}>${i+1}</div>
+          <div class="body"><div class="t">${b.name}${b.id===me.id?' · you':''}</div>
+            <div class="s">${b.total} guess${b.total===1?'':'es'} · ${b.total?Math.round(b.correct/b.total*100):0}% right</div></div>
+          <div class="sc num">${b.correct}</div>
+        </div>`)}
+      </div>` : html`<p class="muted" style="padding:14px 2px;font-size:15px">No guesses yet — start a round below and the board fills in with your very first guess.</p>`}
+    </div>
+    ${myReads.length>0 && html`<div>
+      <div class="head" style="margin:24px 2px 10px"><h2 class="sub">Who you read best</h2><span class="line"></span><span class="meta">your accuracy per friend</span></div>
+      <div class="list">
+        ${myReads.map((x,i)=> html`<div class="row">
+          <div class=${'rk '+(i<3?'top':'')}>${i+1}</div>
+          <div class="body"><div class="t">${x.name}</div><div class="s">${x.correct} of ${x.total} right</div></div>
+          <div class="sc num">${Math.round(x.correct/x.total*100)}%</div>
+        </div>`)}
+      </div></div>`}
+    <div class="head" style="margin:24px 2px 12px"><h2 class="sub">Play a round</h2><span class="line"></span></div>
+    <div class="seg">${others.map(o=> html`<button class=${target&&target.id===o.id?'on':''} onClick=${()=>{ setTid(o.id); setRound(null); setDone(null); setReveal(null); }}>${o.name}</button>`)}</div>
+    ${round ? html`<${GuessRound} target=${target} round=${round} reveal=${reveal} onGuess=${guess} onNext=${nextG} />`
+      : done ? html`<div class="stage">
+          <div class="label kicker">Round complete · ${done.target}</div>
+          <div class="winner-song">${done.correct} / ${done.total}</div>
+          <p class="muted">You read ${done.target}'s taste ${done.correct>done.total*0.6?'really well':done.correct>done.total*0.4?'pretty well':'… could be better'} — ${Math.round(done.correct/done.total*100)}% right.</p>
+          <div class="actions-row"><button class="btn" onClick=${start}>Play again</button></div>
+        </div>`
+      : html`<div class="stage">
+          <div class="label kicker">${estQ>0?estQ+' questions · ':''}their whole ranking</div>
+          <h2>How well do you know ${target?target.name:'them'}?</h2>
+          <p class="muted" style="margin:8px auto 14px;max-width:32ch">Guess which song they rank higher, across their whole list. Finish it all to get your score. Most right tops the leaderboard.</p>
+          <button class="btn" onClick=${start}>Read ${target?target.name:'them'} →</button>
+        </div>`}
+  </div>`;
+}
+function GuessRound({target,round,reveal,onGuess,onNext}){
+  const p=round.pairs[round.idx];
+  const Card=(song)=>{ let cls='song'; let tag=null, tcolor='var(--good)';
+    if(reveal){ if(song===p.higher){ cls+=' chosen'; tag='✓ '+target.name+"'s higher pick"; }
+      else if(song===reveal.pick){ tag='✗ your guess'; tcolor='var(--bad)'; } }
+    return html`<button class=${cls} style=${{'--c':colorOf(song)}} onClick=${()=> !reveal && onGuess(song)}>
+      <div class="album">${SONG_BY_ID[song].album} · ${SONG_BY_ID[song].year}</div>
+      <div class="ttl">${fmtSong(song)}</div>
+      ${tag && html`<div class="label" style=${{marginTop:'8px',color:tcolor}}>${tag}</div>`}
+    </button>`; };
+  return html`<div>
+    <div class="progress" style="margin-top:6px"><span class="label">Q ${round.idx+1} / ${round.pairs.length}</span>
+      <div class="bar"><i style=${{width:(round.idx/round.pairs.length*100)+'%'}}></i></div><span class="label num">${round.correct} right</span></div>
+    <div class="ask" style="margin-top:14px">Which does ${target.name} rank higher?</div>
+    <p class="ask-sub">Guess their taste</p>
+    <div class="versus">
+      ${Card(p.a)}
+      <div class="vs-rule"><span class="l"></span><span class="w">versus</span><span class="l"></span></div>
+      ${Card(p.b)}
+    </div>
+    ${reveal && html`<div class="actions-row"><button class="btn" onClick=${onNext}>${round.idx+1>=round.pairs.length?'See your score':'Next →'}</button></div>`}
+  </div>`;
+}
+
+/* ---------- Duel (live, N players) ---------- */
+function Duel({me,supa,online,offline,onVote,onUndo}){
+  const [ds,setDs]=useState(null);         // shared duel state, rendered by everyone
+  const [present,setPresent]=useState([]); // who's in the duel room
+  const [history,setHistory]=useState([]);
+  const [savedDuels,setSavedDuels]=useState([]); // parked/paused duels
+  const chanRef=useRef(null);
+  const hostStateRef=useRef(baseDuel());
+
+  // settled-clash history from the duels table
+  useEffect(()=>{ if(offline||!supa) return; let on=true;
+    supa.from('duels').select('*').eq('room',me.room).order('created_at',{ascending:false}).limit(40)
+      .then(({data})=>{ if(on&&data) setHistory(data); });
+    const h=supa.channel('duelhist:'+me.room).on('postgres_changes',{event:'INSERT',schema:'public',table:'duels',filter:'room=eq.'+me.room},
+      p=> setHistory(x=>[p.new,...x])).subscribe();
+    return ()=>{ on=false; try{ h.unsubscribe(); }catch{} };
+  },[supa, me.room, offline]);
+
+  // parked/paused duels you can resume later
+  useEffect(()=>{ if(offline||!supa) return; let on=true;
+    const load=()=> supa.from('saved_duels').select('*').eq('room',me.room).order('created_at',{ascending:false})
+      .then(({data})=>{ if(on&&data) setSavedDuels(data); });
+    load();
+    const h=supa.channel('savedduels:'+me.room).on('postgres_changes',{event:'*',schema:'public',table:'saved_duels',filter:'room=eq.'+me.room},
+      ()=> load()).subscribe();
+    return ()=>{ on=false; try{ h.unsubscribe(); }catch{} };
+  },[supa, me.room, offline]);
+
+  // host-authoritative state over an ephemeral broadcast channel.
+  // The roster ("who's here") is tracked with broadcast heartbeats, because
+  // Realtime *presence* isn't reliable on every project — broadcast is.
+  useEffect(()=>{ if(offline||!supa) return;
+    const chan=supa.channel('duel:'+me.room,{config:{broadcast:{self:true}}});
+    chanRef.current=chan;
+    const roster=new Map();           // id -> {id,name,color,ts}
+    let lastSig='';
+    const liveIds=()=>{ const now=Date.now(), ids=[];
+      for(const [id,v] of [...roster]){ if(now-v.ts<10000) ids.push(id); else roster.delete(id); }
+      return ids.sort(); };
+    const refresh=()=>{ const now=Date.now(), arr=[];
+      for(const v of roster.values()){ if(now-v.ts<10000) arr.push({id:v.id,name:v.name,color:v.color}); }
+      arr.sort((a,b)=> a.id<b.id?-1:1);
+      const sig=arr.map(x=>x.id).join(',');
+      if(sig!==lastSig){ lastSig=sig; setPresent(arr); } };
+    let liveState=null;   // latest shared state — the source of truth for who's host
+    const designatedHost=()=>{ const ids=liveIds(); if(!ids.length) return null;
+      if(liveState && liveState.phase!=='lobby' && liveState.host) return ids.includes(liveState.host)? liveState.host : ids[0];
+      return ids[0]; };
+    const send=(payload)=> chan.send({type:'broadcast',event:'duel',payload});
+
+    chan.on('broadcast',{event:'duel'}, ({payload})=>{
+      if(payload.t==='ping'){ roster.set(payload.by,{id:payload.by,name:payload.name,color:payload.color,ts:Date.now()}); refresh();
+        const hs=hostStateRef.current;
+        if(hs && hs.phase!=='lobby' && hs.host===me.id) send({t:'state', state:hs});   // the running host re-syncs newcomers
+        return; }
+      if(payload.t==='state'){ liveState=payload.state; setDs(payload.state); if(payload.state.host===me.id) hostStateRef.current=payload.state; return; }
+      if(payload.t==='action'){
+        if(me.id!==designatedHost()) return;           // only the authoritative host reduces
+        const hs=hostStateRef.current;
+        const base = (hs && hs.phase!=='lobby' && hs.host===me.id) ? hs : ((liveState && liveState.phase!=='lobby') ? liveState : baseDuel());
+        const k=payload.action.kind;
+        if(base.phase==='lobby' && k!=='start' && k!=='resume') return;  // gameplay needs a running duel; never clobber from an empty state
+        const { state, effect }=duelReduce(base, payload.action);
+        hostStateRef.current=state; liveState=state; setDs(state); send({t:'state', state});
+        if(effect&&effect.type==='record'){
+          supa.from('duels').insert({ room:me.room, song_a:effect.row.song_a, song_b:effect.row.song_b,
+            winner:effect.row.winner, winner_lyric:effect.row.winner_lyric,
+            player_a:effect.row.player_a, player_b:effect.row.player_b,
+            mode:effect.row.mode, rounds:effect.row.rounds }).then(()=>{});
+        }
+        if(effect&&effect.type==='saveDuel'){
+          const snap=effect.snapshot;
+          supa.from('saved_duels').insert({ room:me.room,
+            label: (snap.players||[]).map(id=> snap.names[id]||'?').join(' · ')+(snap.scope&&snap.scope!=='all'?' · '+groupName(snap.scope):''),
+            state: snap }).then(()=>{});
+        }
+      }
+    });
+    let hb=null;
+    const beat=()=>{ roster.set(me.id,{id:me.id,name:me.name,color:me.color,ts:Date.now()}); refresh();
+      send({t:'ping', by:me.id, name:me.name, color:me.color}); };
+    chan.subscribe(st=>{ if(st==='SUBSCRIBED'){ beat(); hb=setInterval(beat,3000); } });
+    const pr=setInterval(refresh,3000);
+    return ()=>{ if(hb) clearInterval(hb); clearInterval(pr); try{ chan.unsubscribe(); }catch{} chanRef.current=null; };
+  },[supa, me.id, me.room, me.name, me.color, offline]);
+
+  const dispatch=useCallback((action)=>{ const ch=chanRef.current; if(!ch) return;
+    ch.send({type:'broadcast',event:'duel',payload:{t:'action', action:{...action, by:me.id, name:me.name, color:me.color}}}); },[me]);
+
+  if(offline) return html`<${Empty} title="Duel is a live mode" sub="Connect your group (menu) and open this on each player's device to settle clashes in real time — with lyrics." />`;
+
+  const ps=present;
+  const provisionalHost=ps[0]?ps[0].id:null;
+  const started=ds && ds.phase!=='lobby';
+  const amHost=started ? (me.id===ds.host) : (me.id===provisionalHost);
+  const startDuel=(scope)=>{ if(ps.length<2) return; const seed=Math.floor(Math.random()*2e9)+1;
+    dispatch({kind:'start', host:me.id, players:ps.map(p=>p.id),
+      names:Object.fromEntries(ps.map(p=>[p.id,p.name])), colors:Object.fromEntries(ps.map(p=>[p.id,p.color])), seed, scope:scope||'all'}); };
+  const stopDuel=(save)=> dispatch({kind: save?'save':'abort'});
+  const resumeDuel=(row)=>{ dispatch({kind:'resume', state:row.state, host:me.id});
+    if(supa) supa.from('saved_duels').delete().eq('id',row.id).then(()=>{}); };
+  const deleteSaved=(row)=>{ if(supa) supa.from('saved_duels').delete().eq('id',row.id).then(()=>{}); };
+  const joinDuel=()=> dispatch({kind:'join'});
+
+  return html`<${DuelView} me=${me} ds=${ds} present=${ps} amHost=${amHost} started=${started}
+    dispatch=${dispatch} startDuel=${startDuel} history=${history} joinDuel=${joinDuel} onVote=${onVote} onUndo=${onUndo}
+    savedDuels=${savedDuels} stopDuel=${stopDuel} resumeDuel=${resumeDuel} deleteSaved=${deleteSaved} />`;
+}
+
+function DuelView({me,ds,present,amHost,started,dispatch,startDuel,history,joinDuel,onVote,onUndo,savedDuels,stopDuel,resumeDuel,deleteSaved}){
+  const [scope,setScope]=useState('all');
+  const [stopSheet,setStopSheet]=useState(false);
+  const saved = savedDuels||[];
+  const savedPanel = saved.length>0 ? html`<div>
+    <div class="head" style="margin:26px 2px 12px"><h2 class="sub">Paused duels</h2><span class="line"></span><span class="meta">${saved.length}</span></div>
+    ${saved.map(row=> html`<div class="clash" style="display:flex;align-items:center;gap:10px;padding:13px 14px">
+      <div style="flex:1;min-width:0"><div style="font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${row.label||'Duel'}</div>
+        <div class="label" style="margin-top:2px">${(row.state&&row.state.settled)||0} settled · paused ${relTime(row.created_at)}</div></div>
+      <button class="btn sm" onClick=${()=>resumeDuel(row)}>Resume</button>
+      <button class="btn outline sm" onClick=${()=>{ if(confirm('Delete this paused duel for good?')) deleteSaved(row); }}>Delete</button>
+    </div>`)}
+  </div>` : '';
+  if(!started){
+    return html`
+      <div class="head"><h2>Live Duel</h2><span class="line"></span></div>
+      <div class="stage">
+        <div class="label kicker">Everyone plays at once · clashes settle live</div>
+        <h2>Settle it together</h2>
+        <p class="muted" style="margin:8px auto 0;max-width:36ch">Each player ranks at their own pace. When two of you disagree on a song, a lyric battle pulls you both in. If your rival is mid-duel, your clash waits its turn.</p>
+        <div class="duel-people">
+          ${present.length===0 ? html`<span class="wait">Opening the room…</span>` :
+            present.map(p=> html`<div class="person"><div class="ava lit" style=${{background:p.color,marginLeft:0}}>${initials(p.name)}</div><span>${p.name}${p.id===me.id?' (you)':''}</span></div>`)}
+        </div>
+        ${present.length>=2 && html`<div style="display:flex;justify-content:center;margin:4px 0 16px">
+          <select class="scope-sel" value=${scope} onChange=${e=>setScope(e.target.value)}>
+            <option value="all">Whole catalog</option>
+            ${ALBUM_GROUPS.map(g=> html`<option value=${g.key}>Mini round · ${g.name}</option>`)}
+          </select></div>`}
+        ${present.length<2 ? html`<div class="wait">Waiting for another player to open Duel…</div>`
+          : html`<button class="btn" onClick=${()=>startDuel(scope)}>Begin · ${present.length} players</button>`}
+      </div>
+      ${savedPanel}
+      ${history.length>0 && html`<${DuelHistory} history=${history} />`}`;
+  }
+  if(ds.phase==='done'){
+    return html`
+      <div class="head"><h2>Duel results</h2><span class="line"></span></div>
+      <div class="stage">
+        <div class="label kicker">Duel complete</div>
+        <h2>${ds.settled} clash${ds.settled===1?'':'es'} settled</h2>
+        ${ds.settled>0
+          ? html`<p class="muted" style="margin-top:6px">Every clash you resolved is below — winning song and lyric.</p>`
+          : html`<p class="muted" style="margin-top:6px">No clashes this round — you were all in sync!</p>`}
+        <div class="actions-row">
+          ${present.length>=2 ? html`<button class="btn" onClick=${()=>startDuel(scope)}>Start a new duel</button>` : ''}
+          <button class="btn outline" onClick=${()=>dispatch({kind:'abort'})}>← Back to lobby</button>
+        </div>
+      </div>
+      ${history.length>0 && html`<${DuelHistory} history=${history} />`}`;
+  }
+  if(!ds.players.includes(me.id)){
+    return html`
+      <div class="head"><h2>Live Duel</h2><span class="line"></span></div>
+      <div class="stage"><div class="label kicker">A duel is underway</div>
+        <h2>${ds.players.length} ${ds.players.length===1?'player is':'players are'} dueling</h2>
+        <p class="muted" style="margin:8px auto 16px;max-width:32ch">Hop in now — you'll start from the top, and clashes with the others queue up as you catch up.</p>
+        <button class="btn" onClick=${joinDuel}>Join the duel →</button></div>
+      ${history.length>0 && html`<${DuelHistory} history=${history} />`}`;
+  }
+  const myBoutId=ds.busy[me.id];
+  const d=myBoutId?ds.duels[myBoutId]:null;
+  const activeBouts=Object.values(ds.duels).filter(b=>b.phase!=='resolved').length;
+  return html`
+    <div class="head"><h2>Live Duel</h2><span class="line"></span><span class="meta">${ds.players.length}p · ${ds.settled} settled</span>
+      <button class="btn outline sm" onClick=${()=>setStopSheet(true)}>Pause</button></div>
+    ${d ? html`<${DuelBout} me=${me} ds=${ds} d=${d} dispatch=${dispatch} />`
+        : html`<${DuelChoosing} me=${me} ds=${ds} dispatch=${dispatch} activeBouts=${activeBouts} onVote=${onVote} onUndo=${onUndo} />`}
+    ${history.length>0 && html`<${DuelHistory} history=${history} />`}
+    ${stopSheet && html`<div class="sheet-bg" onClick=${()=>setStopSheet(false)}><div class="sheet" onClick=${e=>e.stopPropagation()}>
+      <div class="label">Stop this duel</div>
+      <h2 style="font-size:23px;margin:6px 0 4px">What next?</h2>
+      <p class="muted" style="font-size:14px;margin:0 0 16px">This ends the duel for everyone. Settled clashes are always kept.</p>
+      <button class="btn" style="width:100%;margin-bottom:10px" onClick=${()=>{ dispatch({kind:'end'}); setStopSheet(false); }}>Finish & see results</button>
+      <button class="btn outline" style="width:100%;margin-bottom:10px" onClick=${()=>{ stopDuel(true); setStopSheet(false); }}>Save — resume later</button>
+      <button class="btn outline" style="width:100%;margin-bottom:10px" onClick=${()=>{ if(confirm('Delete this duel? It cannot be resumed (settled clashes are kept).')){ stopDuel(false); setStopSheet(false); } }}>Delete duel</button>
+      <button class="btn outline" style="width:100%" onClick=${()=>setStopSheet(false)}>Keep playing</button>
+    </div></div>`}`;
+}
+
+function DuelChoosing({me,ds,dispatch,activeBouts,onVote,onUndo}){
+  const idx=ds.cursor[me.id]||0;
+  const pair=ds.seq[idx];
+  const [sent,setSent]=useState(null);
+  const shownAt=useRef(Date.now()); const lastVote=useRef(null);
+  useEffect(()=>{ setSent(null); shownAt.current=Date.now(); },[idx]);
+  if(!pair) return html`<div class="stage"><div class="wait">Loading the next matchup…</div></div>`;
+  const poolN=scopedPool(ds.scope).length;
+  const seen=new Set(); for(let i=0;i<idx;i++){ const p=ds.seq[i]; if(p){ seen.add(p[0]); seen.add(p[1]); } }
+  const pct=poolN? Math.min(100, Math.round(seen.size/poolN*100)) : 0;
+  const pick=async(song)=>{ if(sent!=null) return; setSent(song);
+    const loser = pair[0]===song? pair[1] : pair[0];
+    const id = onVote ? await onVote(song, loser, Math.min(Date.now()-shownAt.current,600000)) : null; // duel picks count toward your ranking + analytics
+    lastVote.current=id; dispatch({kind:'pick',matchup:idx,song}); };
+  const goBack=()=>{ dispatch({kind:'unpick'}); const id=lastVote.current; lastVote.current=null; if(id&&onUndo) onUndo(id); };
+  const pending=ds.queue.filter(c=> c.players.includes(me.id)).map(c=> ds.names[c.players.find(p=>p!==me.id)]);
+  const Card=(song)=> html`<button class=${'song '+(sent===song?'chosen':'')} style=${{'--c':colorOf(song)}} onClick=${()=>pick(song)}>
+    <div class="album">${SONG_BY_ID[song].album} · ${SONG_BY_ID[song].year}</div>
+    <div class="ttl">${fmtSong(song)}</div></button>`;
+  return html`<div>
+    <div class="progress" style="margin-top:6px">
+      <span class="label">${pct}% explored</span>
+      <div class="bar"><i style=${{width:pct+'%'}}></i></div>
+      <span class="label num">${seen.size} / ${poolN}</span>
+    </div>
+    <div class="ask" style="margin-top:14px">Which is better?</div>
+    <p class="ask-sub">Matchup ${idx+1}${ds.scope&&ds.scope!=='all'?' · '+groupName(ds.scope):''} · go at your own pace</p>
+    <div class="versus">
+      ${Card(pair[0])}
+      <div class="vs-rule"><span class="l"></span><span class="w">versus</span><span class="l"></span></div>
+      ${Card(pair[1])}
+    </div>
+    <div class="actions-row" style="margin-top:8px">
+      ${idx>0 && sent==null ? html`<button class="btn outline sm" onClick=${goBack}>↶ Go back</button>` : ''}
+    </div>
+    ${sent!=null && html`<p class="wait" style="text-align:center">Saved — next matchup loading…</p>`}
+    ${pending.length>0 && html`<p class="wait" style="text-align:center;color:var(--accent)">A clash with ${pending.join(', ')} is waiting — they're mid-duel. Keep choosing.</p>`}
+    ${activeBouts>0 && html`<p class="wait" style="text-align:center">${activeBouts} duel${activeBouts===1?'':'s'} happening now</p>`}
+  </div>`;
+}
+
+function DuelBout({me,ds,d,dispatch}){
+  const partnerId=d.players.find(p=>p!==me.id);
+  const partner=ds.names[partnerId]||'your rival';
+  const phase=d.phase;
+  return html`<div>
+    ${phase==='conflict' && html`<div class="stage">
+      <div class="label kicker">A clash with ${partner}</div>
+      <h2>You disagree</h2>
+      <div style="display:flex;gap:16px;margin:18px 0;text-align:left">
+        <div style="flex:1"><div class="nm label" style=${{color:me.color}}>You chose</div><div class="pk" style="font-size:20px">${fmtSong(d.champions[me.id])}</div></div>
+        <div style="flex:1;text-align:right"><div class="nm label">${partner} chose</div><div class="pk" style="font-size:20px">${fmtSong(d.champions[partnerId])}</div></div>
+      </div>
+      <p class="muted" style="margin-bottom:16px">Settle it with the best lyric from each song — or, if you're together, decide out loud.</p>
+      <div class="actions-row">
+        <button class="btn" onClick=${()=>dispatch({kind:'mode',mode:'lyric'})}>Lyric battle</button>
+        <button class="btn outline" onClick=${()=>dispatch({kind:'mode',mode:'together'})}>We're together</button>
+      </div>
+    </div>`}
+
+    ${phase==='together' && html`<div class="stage">
+      <div class="label kicker">Decide together${d.tmiss?' · try again':''}</div>
+      <h2>Which song wins?</h2>
+      <p class="muted" style="margin:6px auto 16px;max-width:32ch">Talk it out with ${partner}, then both tap the same song.</p>
+      ${d.tmiss>0 && html`<p class="wait" style="color:var(--bad)">You tapped different songs — agree and tap again.</p>`}
+      <div style="display:flex;flex-direction:column;gap:12px">
+        ${[d.pair[0],d.pair[1]].map(song=> html`<button class="song" style=${{'--c':colorOf(song)}} onClick=${()=>dispatch({kind:'togetherpick',song})}>
+          <div class="album">${SONG_BY_ID[song].album} · ${SONG_BY_ID[song].year}</div><div class="ttl">${fmtSong(song)}</div></button>`)}
+      </div>
+      ${d.tpicks[me.id] && html`<div class="wait">You tapped ${fmtSong(d.tpicks[me.id])} — waiting for ${partner}…</div>`}
+    </div>`}
+
+    ${phase==='lyric' && html`<${LyricInput} d=${d} me=${me} partner=${partner} dispatch=${dispatch} />`}
+    ${phase==='lyricvote' && html`<${LyricVote} d=${d} me=${me} partner=${partner} partnerId=${partnerId} dispatch=${dispatch} />`}
+
+    ${phase==='resolved' && html`<div class="stage">
+      <div class="label kicker">${d.mode==='draw'?'Called a draw': d.mode==='together'?'Settled in person':'The winning lyric'}</div>
+      ${d.winner ? html`<div class="winner-song">${fmtSong(d.winner)}</div>` : html`<h2>A draw</h2>`}
+      ${d.winLyric ? html`<div class="quote">“${d.winLyric}”</div>` : ''}
+      <p class="muted">vs ${partner} · ${d.mode==='lyric'? ('settled in '+d.round+' round'+(d.round===1?'':'s')) : d.mode==='together'? 'decided together' : 'no winner'}</p>
+      <div class="actions-row"><button class="btn" onClick=${()=>dispatch({kind:'continue'})}>${d.continued[me.id]?'Waiting for '+partner+'…':'Continue ranking'}</button></div>
+    </div>`}
+
+    ${(phase==='lyric'||phase==='lyricvote') && d.round>=4 && html`<div class="actions-row" style="margin-top:14px"><button class="btn outline sm" onClick=${()=>dispatch({kind:'draw'})}>Can't agree — call it a draw</button></div>`}
+  </div>`;
+}
+
+// Fetches the song's lyrics at runtime (lrclib.net) so players can tap a line
+// instead of typing. Lyrics are never bundled in the app — only fetched live.
+function LyricInput({d,me,partner,dispatch}){
+  const mine=d.champions[me.id]; const title=fmtSong(mine);
+  const submitted=d.lyrics[me.id]!=null;
+  const [lines,setLines]=useState(null);   // null = loading, [] = none found, [..] = lines
+  const [sel,setSel]=useState([]);         // up to 3 chosen lines, in tap order
+  const [text,setText]=useState('');
+  const [typing,setTyping]=useState(false);
+  useEffect(()=>{ let on=true; const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(),9000);
+    fetch('https://lrclib.net/api/search?artist_name=Taylor+Swift&track_name='+encodeURIComponent(title),{signal:ctrl.signal})
+      .then(r=>r.json()).then(arr=>{ if(!on) return;
+        const hit=(arr||[]).find(x=> x.plainLyrics && x.plainLyrics.length>20);
+        if(!hit){ setLines([]); return; }
+        const seen=new Set(), ls=[];
+        for(const raw of hit.plainLyrics.split('\n')){ const l=raw.trim();
+          if(!l || /^\[.*\]$/.test(l) || seen.has(l)) continue; seen.add(l); ls.push(l); if(ls.length>=80) break; }
+        setLines(ls);
+      }).catch(()=>{ if(on) setLines([]); }).finally(()=>clearTimeout(to));
+    return ()=>{ on=false; ctrl.abort(); clearTimeout(to); };
+  },[title]);
+  const MAX=3;
+  const toggle=(l)=> setSel(cur=> cur.includes(l) ? cur.filter(x=>x!==l) : (cur.length>=MAX ? cur : [...cur,l]));
+  const submitSel=()=>{ if(sel.length) dispatch({kind:'lyric',text:sel.join('\n')}); };
+  const submitText=()=>{ const v=(text||'').trim(); if(v) dispatch({kind:'lyric',text:v}); };
+
+  if(submitted) return html`<div class="stage" style="text-align:left">
+    <div style="text-align:center"><div class="label kicker">Make your case${d.round>1?' · round '+d.round:''}</div></div>
+    <div class="lyric-card" style="margin-top:12px"><div class="for label">Your pick · ${title}</div><div class="ly">“${d.lyrics[me.id]}”</div></div>
+    <div class="wait" style="text-align:center">Waiting for ${partner}…</div></div>`;
+
+  return html`<div class="stage" style="text-align:left">
+    <div style="text-align:center"><div class="label kicker">Make your case${d.round>1?' · round '+d.round:''}</div>
+      <h2 style="text-align:center">Pick up to 3 lines</h2>
+      <p class="muted" style="text-align:center;margin:6px 0 14px">Defending <b>${title}</b> vs ${partner}</p></div>
+    ${lines===null && html`<div class="wait" style="text-align:center">Finding the lyrics…</div>`}
+    ${lines && lines.length>0 && !typing && html`<div>
+      <div class="lyric-list">
+        ${lines.map(l=> html`<button class=${'lyric-line'+(sel.includes(l)?' sel':'')} onClick=${()=>toggle(l)}>
+          ${sel.includes(l)?html`<span class="pick-n">${sel.indexOf(l)+1}</span>`:''}${l}</button>`)}
+      </div>
+      <div class="actions-row" style="margin-top:14px">
+        <button class="btn" disabled=${!sel.length} onClick=${submitSel}>Lock in ${sel.length||''} line${sel.length===1?'':'s'}</button>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+        <span class="label" style="opacity:.7">lyrics via lrclib.net · pick up to 3</span>
+        <button class="btn outline sm" onClick=${()=>setTyping(true)}>Type instead</button>
+      </div>
+    </div>`}
+    ${(typing || (lines && lines.length===0)) && html`<div>
+      ${lines && lines.length===0 && html`<p class="muted" style="text-align:center;margin:4px 0 12px">Couldn't fetch this one — type your favorite line(s).</p>`}
+      <textarea placeholder=${'A line or two from "'+title+'"…'} value=${text} onInput=${e=>setText(e.target.value)} maxLength=${300}></textarea>
+      <div class="actions-row"><button class="btn" disabled=${!text.trim()} onClick=${submitText}>Submit</button></div>
+      ${lines && lines.length>0 && html`<div style="text-align:center;margin-top:8px"><button class="btn outline sm" onClick=${()=>setTyping(false)}>Back to lyrics</button></div>`}
+    </div>`}
+  </div>`;
+}
+function LyricVote({d,me,partner,partnerId,dispatch}){
+  const myChamp=d.champions[me.id], theirChamp=d.champions[partnerId];
+  const voted=d.lyricVotes[me.id]!=null;
+  const Card=(song, who)=> html`<button class=${'lyric-card '+(d.lyricVotes[me.id]===song?'sel':'')} style="margin-bottom:12px"
+      onClick=${()=> !voted && dispatch({kind:'lyricvote',song})}>
+    <div class="for label">For ${fmtSong(song)}</div>
+    <div class="ly">“${d.lyrics[who]}”</div>
+  </button>`;
+  return html`<div class="stage" style="text-align:left">
+    <div style="text-align:center"><div class="label kicker">Vote the better lyric${d.round>1?' · round '+d.round:''}</div>
+      <h2 style="text-align:center">Whose line wins?</h2>
+      <p class="muted" style="text-align:center;margin:6px 0 16px">You and ${partner} must pick the same one</p></div>
+    ${Card(myChamp, me.id)}
+    ${Card(theirChamp, partnerId)}
+    ${voted ? html`<div class="wait" style="text-align:center">You voted — waiting for ${partner}…</div>`
+      : html`<div class="wait" style="text-align:center">Tap the better lyric</div>`}
+  </div>`;
+}
+function DuelHistory({history}){
+  return html`<div>
+    <div class="head" style="margin:30px 2px 12px"><h2 class="sub">Settled clashes</h2><span class="line"></span><span class="meta">${history.length}</span></div>
+    ${history.slice(0,40).map(d=> html`<div class="clash">
+      <div class="top">
+        <span class="pairname">${d.player_a} vs ${d.player_b}</span>
+        <span class="badge">${d.mode==='draw'?'draw':d.mode==='together'?'in person':'lyric · '+(d.rounds||1)}</span>
+      </div>
+      ${d.winner ? html`<div class="pk" style="font-size:21px">${fmtSong(d.winner)} <span class="muted serif-it" style="font-size:15px">over ${fmtSong(d.winner===d.song_a?d.song_b:d.song_a)}</span></div>`
+        : html`<div class="pk" style="font-size:19px">${fmtSong(d.song_a)} / ${fmtSong(d.song_b)} <span class="muted serif-it">— a draw</span></div>`}
+      ${d.winner_lyric ? html`<div class="quote" style="margin:10px 0 0;font-size:18px;max-width:none">“${d.winner_lyric}”</div>`:''}
+    </div>`)}
+  </div>`;
+}
+
+/* ---------- shared ---------- */
+function Empty({title,sub}){
+  return html`<div class="empty"><hr class="rule" /><h2>${title}</h2><p>${sub}</p></div>`;
+}
+
+/* ---------- Setup ---------- */
+function Setup({onSaved,onSkip}){
+  const [url,setUrl]=useState(LS.get('ss_url','')); const [key,setKey]=useState(LS.get('ss_key',''));
+  const save=()=>{ if(!url||!key){ alert('Paste both the Project URL and the anon key.'); return; }
+    LS.set('ss_url',url.trim()); LS.set('ss_key',key.trim()); onSaved(cfg()); };
+  return html`<div class="center"><div class="card pad" style="max-width:440px">
+    <div class="label">A live ranking salon</div>
+    <h1 style="font-size:34px;margin:6px 0 4px">The <span class="serif-it" style="color:var(--accent)">Swift</span> Index</h1>
+    <p class="muted" style="margin:0 0 16px">Rank every Taylor Swift song with your friends — live.</p>
+    <div class="notice">Playing together needs a free <b>Supabase</b> project (one person sets it up; see <code class="mono">README.md</code>). Paste its two values below.</div>
+    <label class="fld label">Project URL</label>
+    <input placeholder="https://xxxx.supabase.co" value=${url} onInput=${e=>setUrl(e.target.value)} />
+    <label class="fld label">Anon public key</label>
+    <input placeholder="eyJhbGci…" value=${key} onInput=${e=>setKey(e.target.value)} />
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button class="btn" style="flex:1" onClick=${save}>Connect</button>
+      <button class="btn outline" onClick=${onSkip}>Try solo</button>
+    </div>
+  </div></div>`;
+}
+/* ---------- Join ---------- */
+function dedupeProfiles(rows){ const m={}; for(const r of (rows||[])){ if(!r.player_id||m[r.player_id]) continue;
+  m[r.player_id]={id:r.player_id, name:r.player_name, color:r.player_color||COLORS[0]}; } return Object.values(m); }
+function Join({offline,onJoin}){
+  const prev=LS.get('ss_me',null);
+  const [room,setRoom]=useState(prev?.room||'besties');
+  const [profiles,setProfiles]=useState(null);   // existing profiles in this room (null=loading)
+  const [mode,setMode]=useState('pick');          // 'pick' | 'new'
+  const [name,setName]=useState(prev?.name||''); const [color,setColor]=useState(prev?.color||COLORS[0]);
+  useEffect(()=>{ let on=true; setProfiles(null); const r=slug(room)||'besties';
+    const t=setTimeout(()=>{
+      if(offline){ if(on) setProfiles(dedupeProfiles(LS.get('ss_votes_'+r,[]))); return; }
+      const c=cfg(); if(!c.ready){ if(on) setProfiles([]); return; }
+      createClient(c.url,c.key).from('votes').select('player_id,player_name,player_color').eq('room',r)
+        .then(({data})=>{ if(on) setProfiles(dedupeProfiles(data||[])); });
+    },350);
+    return ()=>{ on=false; clearTimeout(t); };
+  },[room,offline]);
+  const r=slug(room)||'besties';
+  const pick=(p)=> onJoin({ id:p.id, name:p.name, room:r, color:p.color });
+  const createNew=()=>{ const nm=name.trim(); if(!nm){ alert('What should we call you?'); return; }
+    const id=r+'~'+(slug(nm)||'player');
+    if((profiles||[]).some(p=>p.id===id)){ if(confirm('A profile named "'+nm+'" already exists here — use it (keep its progress)?')) onJoin({id,name:nm,room:r,color:(profiles.find(p=>p.id===id)||{}).color||color}); return; }
+    onJoin({ id, name:nm, room:r, color }); };
+  return html`<div class="center"><div class="card pad" style="max-width:440px">
+    <div class="label">${offline?'Solo mode':'Take your seat'}</div>
+    <h1 style="font-size:30px;margin:6px 0 14px">Join the Index</h1>
+    <label class="fld label">Room — everyone types the same word</label>
+    <input placeholder="besties" value=${room} onInput=${e=>{ setRoom(e.target.value); setMode('pick'); }} maxLength=${24} />
+    ${mode==='pick' ? html`<div>
+      <label class="fld label">Who are you?</label>
+      ${profiles===null ? html`<p class="muted" style="font-size:14px;padding:8px 2px">Looking up profiles in “${r}”…</p>`
+        : profiles.length ? html`<div class="list" style="border-top:1px solid var(--line)">
+            ${profiles.map(p=> html`<button class="row" style="width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--line);cursor:pointer;padding:11px 4px" onClick=${()=>pick(p)}>
+              <div class="ava" style=${{background:p.color,marginLeft:0,width:'30px',height:'30px',fontSize:'12px'}}>${initials(p.name)}</div>
+              <div class="body"><div class="t">${p.name}</div></div>
+              <div class="sc" style="color:var(--accent)">resume →</div>
+            </button>`)}
+          </div>`
+        : html`<p class="muted" style="font-size:14px;padding:8px 2px">No profiles here yet — be the first.</p>`}
+      <button class="btn outline" style="width:100%;margin-top:14px" onClick=${()=>setMode('new')}>+ New player</button>
+      <p class="muted" style="font-size:12.5px;margin:14px 0 0;line-height:1.45">Tap your existing profile to keep your ranking. Only make a new one if you haven't played in this room before.</p>
+    </div>` : html`<div>
+      <label class="fld label">Your name</label>
+      <input placeholder="e.g. Kaitlyn" value=${name} onInput=${e=>setName(e.target.value)} maxLength=${24} />
+      <label class="fld label">Your color</label>
+      <div class="swatches">${COLORS.map(c=> html`<button class=${'sw '+(color===c?'sel':'')} style=${{background:c}} onClick=${()=>setColor(c)} aria-label="color"></button>`)}</div>
+      <div style="display:flex;gap:10px;margin-top:18px">
+        <button class="btn" style="flex:1" onClick=${createNew}>Create & enter</button>
+        ${(profiles&&profiles.length)?html`<button class="btn outline" onClick=${()=>setMode('pick')}>Back</button>`:''}
+      </div>
+    </div>`}
+  </div></div>`;
+}
+/* ---------- Menu ---------- */
+function Menu({me,offline,players,onClose,onReset,onDeleteProfile,onSwitch}){
+  const [view,setView]=useState('main');     // 'main' | 'manage'
+  const [pw,setPw]=useState(''); const [unlocked,setUnlocked]=useState(false); const [busy,setBusy]=useState(null);
+  const profiles=Object.values(players||{}).sort((a,b)=> b.n-a.n);
+  const removeProfile=async(p)=>{ if(busy) return;
+    if(!confirm('Delete '+p.name+"'s profile and all of their data (rankings, guesses, clashes)? This can't be undone.")) return;
+    setBusy(p.id); await onDeleteProfile(p.id, p.name); setBusy(null); };
+  if(view==='manage'){
+    return html`<div class="sheet-bg" onClick=${onClose}><div class="sheet" onClick=${e=>e.stopPropagation()}>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div class="label">Delete profiles</div><button class="btn outline sm" onClick=${()=>setView('main')}>Back</button></div>
+      ${!unlocked ? html`<div>
+        <p class="muted" style="font-size:14px;margin:0 0 12px">Enter the admin password to remove profiles.</p>
+        <input type="password" placeholder="Admin password" value=${pw} onInput=${e=>setPw(e.target.value)} />
+        <button class="btn" style="width:100%;margin-top:12px" onClick=${()=>{ if(pw===ADMIN_PASSWORD){ setUnlocked(true); setPw(''); } else alert('Wrong password.'); }}>Unlock</button>
+      </div>` : html`<div>
+        <p class="muted" style="font-size:13px;margin:0 0 8px">Tap delete to permanently remove a profile and all of its data.</p>
+        <div class="list" style="border-top:1px solid var(--line);max-height:46vh;overflow-y:auto">
+          ${profiles.length ? profiles.map(p=> html`<div class="row">
+            <div class="ava" style=${{background:p.color,marginLeft:0,width:'28px',height:'28px',fontSize:'11px'}}>${initials(p.name)}</div>
+            <div class="body"><div class="t">${p.name}${p.id===me.id?' · you':''}</div><div class="s">${p.n} battle${p.n===1?'':'s'}</div></div>
+            <button class="btn outline sm" disabled=${busy===p.id} onClick=${()=>removeProfile(p)}>${busy===p.id?'…':'Delete'}</button>
+          </div>`) : html`<div class="muted" style="padding:10px 2px">No profiles found.</div>`}
+        </div>
+      </div>`}
+    </div></div>`;
+  }
+  return html`<div class="sheet-bg" onClick=${onClose}><div class="sheet" onClick=${e=>e.stopPropagation()}>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+      <div class="ava" style=${{background:me.color,marginLeft:0,width:'38px',height:'38px',fontSize:'13px'}}>${initials(me.name)}</div>
+      <div><div style="font-size:20px">${me.name}</div><div class="label">room ${me.room}${offline?' · solo':''}</div></div>
+    </div>
+    ${!offline && html`<div class="notice" style="margin-bottom:14px;font-size:13px">Your ranking and duel history save automatically to <b>${me.name}</b> in <b>${me.room}</b>. Rejoin with the same name + room on any device to pick up where you left off.</div>`}
+    <button class="btn outline" style="width:100%;margin-bottom:10px" onClick=${onSwitch}>Switch / change profile</button>
+    <button class="btn outline" style="width:100%;margin-bottom:10px" onClick=${onReset}>Reset my battles</button>
+    ${!offline && html`<button class="btn outline" style="width:100%;margin-bottom:10px" onClick=${()=>setView('manage')}>Delete profiles…</button>`}
+    <button class="btn" style="width:100%" onClick=${onClose}>Close</button>
+    <p class="label" style="text-align:center;margin:16px 0 0">${TOTAL} songs · Elo-ranked · ${BUILD}</p>
+  </div></div>`;
+}
+
+render(html`<${App} />`, document.getElementById('app'));
+</script>
+</body>
+</html>
