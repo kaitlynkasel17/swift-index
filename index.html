@@ -260,7 +260,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Password to delete profiles (a soft gate for your friend group — change it).
 const ADMIN_PASSWORD = "taylor13";
 // Build tag — shown in the ≡ menu so you can confirm a fresh deploy is live.
-const BUILD = "drag-v15";
+const BUILD = "drag-v16";
 
 /* ============================================================================
    2. THE CATALOG — every distinct Taylor Swift song (re-recordings collapsed
@@ -417,12 +417,15 @@ function leaderboard(p){
     .map(id=>({ id, rating:p.ratings[id], count:p.counts[id]||0 }))
     .sort((a,b)=> b.rating - a.rating);
 }
-// How trustworthy a ranking is: progress toward ~5 informative comparisons for every song in the catalog.
-function settledness(p){
+// How trustworthy a ranking is: progress toward ~5 informative comparisons for every song.
+// Climbs the whole time you play (rewards depth, not just breadth) — never falsely maxes out early.
+// Pass `pool` (array of song ids) to measure within one album; otherwise the whole catalog.
+function settledness(p, pool){
   if (!p) return { pct:0, inPlay:0 };
   const D=5; let sum=0, inPlay=0;
-  for (const id in p.counts){ if (!SONG_BY_ID[id]) continue; const c=p.counts[id]; if (c>0){ inPlay++; sum+=Math.min(c,D); } }
-  return { pct: Math.round(100*sum/(D*TOTAL)), inPlay };
+  const ids = pool || Object.keys(SONG_BY_ID);
+  for (const id of ids){ if (!SONG_BY_ID[id]) continue; const c=p.counts[id]||0; if (c>0){ inPlay++; sum+=Math.min(c,D); } }
+  return { pct: Math.round(100*sum/(D*ids.length)), inPlay };
 }
 function groupConsensus(players){
   const agg = {};
@@ -935,9 +938,10 @@ function Battle({me,myP,votes,onVote,onUndo,offline}){
   const mine=myP?myP.n:0; const [a,b]=pair;
   const albumSongs = scope==='all'? null : (ALBUM_GROUPS.find(g=>g.key===scope)||{songs:[]}).songs;
   const poolN = scope==='all'? TOTAL : albumSongs.length;
-  const seenInScope = scope==='all' ? (myP? Object.keys(myP.counts).length : 0) : albumSongs.filter(id=> myP && myP.counts[id]>0).length;
-  const complete = seenInScope>=poolN;     // every song in this scope has been battled at least once
-  const pct = poolN? (complete? 100 : Math.min(99, Math.floor(seenInScope/poolN*100))) : 0;   // never round UP to 100% early
+  const acc = scope==='all'? settledness(myP) : settledness(myP, albumSongs);   // "pyramid accuracy" — climbs as you sharpen
+  const seenInScope = acc.inPlay;
+  const complete = seenInScope>=poolN;     // every song in this scope is in your ranking
+  const pct = acc.pct;                     // the accuracy bar fills with how settled the ranking is
   const sameAlbum = SONG_BY_ID[a].albumKey===SONG_BY_ID[b].albumKey;
   const roundLabel = complete ? 'Sharpening · the close calls'
     : scope!=='all' ? ('Mini round · '+groupName(scope))
@@ -945,11 +949,11 @@ function Battle({me,myP,votes,onVote,onUndo,offline}){
   return html`
     ${offline && html`<div class="notice" style="margin-top:18px">Solo mode — your battles save on this device only. Add your group connection (menu) to play live with friends.</div>`}
     <div class="progress">
-      <span class="label">${pct}% · ${mine} battle${mine===1?'':'s'}</span>
+      <span class="label">${pct}% accuracy · ${mine} battle${mine===1?'':'s'}</span>
       <div class="bar"><i style=${{width:pct+'%'}}></i></div>
-      <span class="label num">${seenInScope} / ${poolN}</span>
+      <span class="label num">${seenInScope} / ${poolN} ranked</span>
     </div>
-    ${complete && html`<p style="text-align:center;margin:9px 0 0;font-family:var(--sans);font-size:11.5px;color:var(--muted)">every song's ranked — these battles just sharpen the close calls. stop anytime; your Pyramid's ready.</p>`}
+    ${complete && html`<p style="text-align:center;margin:9px 0 0;font-family:var(--sans);font-size:11.5px;color:var(--muted)">every song's in — each battle now sharpens the close calls and nudges your accuracy up. stop anytime.</p>`}
     <div style="display:flex;justify-content:center;margin-top:16px">
       <select class="scope-sel" value=${scope} onChange=${e=>{ setScope(e.target.value); LS.set('ss_scope_'+me.room, e.target.value); }}>
         <option value="all">Rank all songs</option>
@@ -1116,7 +1120,7 @@ function Pyramid({me,players,duels,onVote,onAnchors,offline}){
         ${ALBUM_GROUPS.map(g=> html`<option value=${g.key}>${g.name}</option>`)}
       </select>
     </div>
-    ${settled && settled.inPlay>0 && html`<p class="pyr-settled"><b>~${settled.pct}% settled</b> · ${settled.inPlay} of ${TOTAL} in play${settled.pct<65?' · '+(source==='me'?'keep battling':'still early'):''}</p>`}
+    ${settled && settled.inPlay>0 && html`<p class="pyr-settled"><b>~${settled.pct}% accurate</b> · ${settled.inPlay} of ${TOTAL} ranked${settled.pct<65?' · '+(source==='me'?'keep battling':'still early'):''}</p>`}
     ${data.length>28 && html`<div class="pyr-count">
       ${[25,50,100].filter(n=>n<data.length).map(n=> html`<button class=${showN===n?'on':''} onClick=${()=>{setShowN(n);setSel(null);}}>${n}</button>`)}
       <button class=${shown>=data.length?'on':''} onClick=${()=>{setShowN(data.length);setSel(null);}}>all ${data.length}</button>
