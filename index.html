@@ -138,6 +138,7 @@
   .pyr-filters .scope-sel{flex:1 1 0; min-width:0; max-width:230px; text-align:center}
   .pyr-settled{text-align:center; margin:8px 0 0; font-family:var(--sans); font-size:11.5px; color:var(--muted)}
   .pyr-settled b{color:var(--ink2); font-weight:600}
+  .exp-link{color:var(--accent); text-decoration:underline; cursor:pointer}
   .pyr-ghost{position:fixed; z-index:300; pointer-events:none; left:0; top:0; transform:translate(-50%,-150%);
     background:var(--ink); color:var(--bg); padding:6px 11px; border-radius:5px; font-family:var(--sans); font-size:12px; font-weight:700;
     box-shadow:0 6px 18px rgba(0,0,0,.32); white-space:nowrap; max-width:200px; overflow:hidden; text-overflow:ellipsis}
@@ -265,7 +266,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Password to delete profiles (a soft gate for your friend group — change it).
 const ADMIN_PASSWORD = "taylor13";
 // Build tag — shown in the ≡ menu so you can confirm a fresh deploy is live.
-const BUILD = "drag-v25";
+const BUILD = "drag-v26";
 
 /* ============================================================================
    2. THE CATALOG — every distinct Taylor Swift song (re-recordings collapsed
@@ -1121,7 +1122,8 @@ function Pyramid({me,players,collective,duels,onVote,onAnchors,offline}){
     + (album!=='all'?' '+groupName(album):' Taylor Swift') + ' ranking';
   const doExport=()=>{
     const text = data.map(d=> fmtSong(d.id)+' - Taylor Swift').join('\n');
-    const done=()=>{ setCopied(true); setTimeout(()=>setCopied(false),5000); };
+    try{ window.open('https://soundiiz.com/','_blank','noopener'); }catch(_){}   // open importer in the click gesture (or it gets popup-blocked)
+    const done=()=>{ setCopied(true); setTimeout(()=>setCopied(false),9000); };
     if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done,done);
     else { try{ const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }catch(_){}; done(); }
   };
@@ -1231,7 +1233,10 @@ function Pyramid({me,players,collective,duels,onVote,onAnchors,offline}){
     </div>`}
     ${data.length>1 && html`<div style="text-align:center;margin:9px 0 0">
       <button class="btn outline sm" onClick=${doExport}>↗ Export to a playlist</button>
-      ${copied && html`<p class="pyr-settled" style="margin-top:8px;max-width:42ch;margin-left:auto;margin-right:auto"><b>Copied ${data.length} songs</b> (“${exportName}”). Paste into a free importer like <b>Soundiiz</b> or <b>TuneMyMusic</b> to build an Apple Music or Spotify playlist.</p>`}
+      ${copied && html`<div style="max-width:46ch;margin:9px auto 0">
+        <p class="pyr-settled" style="margin:0"><b>Copied ${data.length} songs + opened Soundiiz.</b> There: <b>Import → “Import a tracklist”</b> → paste (⌘V) → pick Spotify or Apple Music.</p>
+        <p class="pyr-settled" style="margin:4px 0 0">Or use <a class="exp-link" href="https://www.tunemymusic.com/transfer" target="_blank" rel="noopener">TuneMyMusic ↗</a></p>
+      </div>`}
     </div>`}
     ${data.length>28 && html`<div class="pyr-count">
       ${[25,50,100].filter(n=>n<data.length).map(n=> html`<button class=${showN===n?'on':''} onClick=${()=>{setShowN(n);setSel(null);}}>${n}</button>`)}
