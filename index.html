@@ -266,7 +266,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Password to delete profiles (a soft gate for your friend group — change it).
 const ADMIN_PASSWORD = "taylor13";
 // Build tag — shown in the ≡ menu so you can confirm a fresh deploy is live.
-const BUILD = "drag-v26";
+const BUILD = "drag-v27";
 
 /* ============================================================================
    2. THE CATALOG — every distinct Taylor Swift song (re-recordings collapsed
@@ -1117,16 +1117,15 @@ function Pyramid({me,players,collective,duels,onVote,onAnchors,offline}){
     if(onAnchors) await onAnchors(anchors);
   };
   // ---- export the current ranking as a list (paste into a free importer → Apple Music / Spotify playlist) ----
-  const [copied,setCopied]=useState(false);
+  const [showExport,setShowExport]=useState(false);
   const exportName = (source==='all'?'Group':source==='me'?'My':((players[source]&&players[source].name)||'')+'’s')
     + (album!=='all'?' '+groupName(album):' Taylor Swift') + ' ranking';
-  const doExport=()=>{
+  const copyList=()=>{
     const text = data.map(d=> fmtSong(d.id)+' - Taylor Swift').join('\n');
-    try{ window.open('https://soundiiz.com/','_blank','noopener'); }catch(_){}   // open importer in the click gesture (or it gets popup-blocked)
-    const done=()=>{ setCopied(true); setTimeout(()=>setCopied(false),9000); };
-    if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done,done);
-    else { try{ const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }catch(_){}; done(); }
+    if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).catch(()=>{});
+    else { try{ const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }catch(_){} }
   };
+  const doExport=()=>{ copyList(); setShowExport(true); };   // copy + show the steps FIRST, before opening the importer
 
   // ---- drag-to-rerank: drop writes a rating "anchor" that places the song exactly, flowing into all your rankings ----
   // Listeners live on window (not the tile) so the release always registers even if touch pointer-capture drops mid-drag.
@@ -1233,11 +1232,19 @@ function Pyramid({me,players,collective,duels,onVote,onAnchors,offline}){
     </div>`}
     ${data.length>1 && html`<div style="text-align:center;margin:9px 0 0">
       <button class="btn outline sm" onClick=${doExport}>↗ Export to a playlist</button>
-      ${copied && html`<div style="max-width:46ch;margin:9px auto 0">
-        <p class="pyr-settled" style="margin:0"><b>Copied ${data.length} songs + opened Soundiiz.</b> There: <b>Import → “Import a tracklist”</b> → paste (⌘V) → pick Spotify or Apple Music.</p>
-        <p class="pyr-settled" style="margin:4px 0 0">Or use <a class="exp-link" href="https://www.tunemymusic.com/transfer" target="_blank" rel="noopener">TuneMyMusic ↗</a></p>
-      </div>`}
     </div>`}
+    ${showExport && html`<div class="sheet-bg" onClick=${()=>setShowExport(false)}><div class="sheet" onClick=${e=>e.stopPropagation()}>
+      <div style="font-family:var(--serif);font-size:21px;text-align:center;letter-spacing:.2px">Make a playlist</div>
+      <p class="muted" style="text-align:center;margin:6px auto 16px;max-width:34ch"><b>${data.length} songs copied</b> in order (“${exportName}”). Build the playlist in a free tool — works for both Spotify & Apple Music:</p>
+      <div class="welcome-steps" style="margin-bottom:18px">
+        <div class="wstep"><div class="wn">1</div><div><div class="wt">Open the importer</div><div class="wd">Tap the button below — it opens in a new tab.</div></div></div>
+        <div class="wstep"><div class="wn">2</div><div><div class="wt">Import a tracklist</div><div class="wd">In Soundiiz: <b>Import → “Import a tracklist,”</b> then paste (⌘V / Ctrl+V).</div></div></div>
+        <div class="wstep"><div class="wn">3</div><div><div class="wt">Pick your service</div><div class="wd">Choose <b>Spotify</b> or <b>Apple Music</b> and save. Done.</div></div></div>
+      </div>
+      <a class="btn" style="display:block;width:100%;box-sizing:border-box;text-align:center;text-decoration:none" href="https://soundiiz.com/" target="_blank" rel="noopener" onClick=${copyList}>Open Soundiiz ↗</a>
+      <p style="text-align:center;margin:10px 0 0;font-size:13px"><a class="exp-link" href="https://www.tunemymusic.com/transfer" target="_blank" rel="noopener" onClick=${copyList}>or use TuneMyMusic ↗</a></p>
+      <button class="btn outline" style="width:100%;margin-top:14px" onClick=${()=>setShowExport(false)}>Close</button>
+    </div></div>`}
     ${data.length>28 && html`<div class="pyr-count">
       ${[25,50,100].filter(n=>n<data.length).map(n=> html`<button class=${showN===n?'on':''} onClick=${()=>{setShowN(n);setSel(null);}}>${n}</button>`)}
       <button class=${shown>=data.length?'on':''} onClick=${()=>{setShowN(data.length);setSel(null);}}>all ${data.length}</button>
